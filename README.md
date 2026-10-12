@@ -10,6 +10,7 @@ Every time you start, Professor Birch shows you a land nobody has seen before: t
 
 - [Trailer](https://youtu.be/Mo60_J5mIKs)
 - [Hackdex](https://www.hackdex.app/hack/roguemon)
+- [romhack.ing](https://romhack.ing/database/content/entry/oySUxziUSpa1x8ssvQDuqQ/rogu-mon)
 - [Discord](https://discord.gg/5UgSGxcZQF): bug reports, region seeds and Nuzlocke stories
 
 ## How to play
