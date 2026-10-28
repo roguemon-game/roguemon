@@ -19,9 +19,13 @@ Every time you start, Professor Birch shows you a land nobody has seen before: t
 2. Apply the `.bps` patch with [Rom Patcher JS](https://www.marcrobledo.com/RomPatcher.js/).
 3. Play in a GBA emulator such as mGBA, with the save type set to Flash 128K.
 
+## Source code
+
+This repository holds the game's source, a fork of pokeemerald-expansion. Each release tag (for example `v1.1.5-beta`) is the source of that release's patch. The region generator is in `src/rogue_gen*.c` and `src/rogue_gen_*.h`, and the run rules are in `src/rogue*.c`. `INSTALL.md` covers the build toolchain. Run `make` to build `pokeemerald.gba`. Bug reports go to the Discord.
+
 ## Credits
 
 - Based off RHH's pokeemerald-expansion 1.17.1: https://github.com/rh-hideout/pokeemerald-expansion/ (thanks to the Rom Hacking Hideout and [all its contributors](https://github.com/rh-hideout/pokeemerald-expansion/blob/master/CREDITS.md))
 - Built on [pokeemerald](https://github.com/pret/pokeemerald), the decompilation of Pokémon Emerald by pret and its contributors
 
-Roguémon is a free fan game. It is not made or approved by Nintendo, and it is not for sale. This repository shares patches only, never ROMs.
+Roguémon is a free fan game. It is not made or approved by Nintendo, and it is not for sale. This repository shares source code and patches only, never ROMs.

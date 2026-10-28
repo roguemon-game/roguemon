@@ -1,0 +1,21 @@
+{
+  "id": "MAP_ROGUE_PLACE_25",
+  "name": "RoguePlace25",
+  "layout": "LAYOUT_ROGUE_SLOT_25",
+  "music": "MUS_ROUTE101",
+  "region": "REGION_HOENN",
+  "region_map_section": "MAPSEC_ROGUE_PLACE_25",
+  "requires_flash": false,
+  "weather": "WEATHER_SUNNY",
+  "map_type": "MAP_TYPE_ROUTE",
+  "allow_cycling": true,
+  "allow_escaping": true,
+  "allow_running": true,
+  "show_map_name": true,
+  "battle_scene": "MAP_BATTLE_SCENE_NORMAL",
+  "connections": null,
+  "object_events": [],
+  "warp_events": [],
+  "coord_events": [],
+  "bg_events": []
+}

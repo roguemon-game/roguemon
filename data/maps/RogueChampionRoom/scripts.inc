@@ -1,0 +1,5 @@
+RogueChampionRoom_MapScripts::
+	map_script MAP_SCRIPT_ON_TRANSITION, Rogue_ChampionRoom_OnTransition
+	map_script MAP_SCRIPT_ON_WARP_INTO_MAP_TABLE, Rogue_ChampionRoom_OnWarp
+	map_script MAP_SCRIPT_ON_FRAME_TABLE, Rogue_ChampionRoom_OnFrame
+	.byte 0

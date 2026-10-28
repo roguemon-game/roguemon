@@ -1,0 +1,106 @@
+{
+  "id": "MAP_ROGUE_FLOOR_3",
+  "name": "RogueFloor3",
+  "layout": "LAYOUT_ROGUE_FLOOR",
+  "music": "MUS_CAVE_OF_ORIGIN",
+  "region": "REGION_HOENN",
+  "region_map_section": "MAPSEC_ROGUE_PLACE_0",
+  "requires_flash": false,
+  "weather": "WEATHER_NONE",
+  "map_type": "MAP_TYPE_UNDERGROUND",
+  "allow_cycling": false,
+  "allow_escaping": true,
+  "allow_running": true,
+  "show_map_name": true,
+  "battle_scene": "MAP_BATTLE_SCENE_NORMAL",
+  "connections": null,
+  "object_events": [],
+  "warp_events": [
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "elevation": 0,
+      "dest_map": "MAP_ROGUE_PLACE_0",
+      "dest_warp_id": "0"
+    }
+  ],
+  "coord_events": [],
+  "bg_events": []
+}

@@ -1,0 +1,62 @@
+/*
+
+Parties for the debug menu.
+
+The trainer description for DEBUG_TRAINER_PLAYER is not used,
+its party is given to the player whenever the Set Party action is selected,
+or the Start Debug Battle action is selected.
+
+The debug menu will start a battle against DEBUG_TRAINER_AI when the
+Start Debug Battle action is selected.
+
+*/
+
+=== DEBUG_TRAINER_PLAYER ===
+Name: Player
+Class: Pkmn Trainer 1
+Pic: Brendan
+Gender: Male
+Music: Male
+
+Buffie (Wobbuffet)
+Brave Nature
+Level: 100
+IVs: 31 HP / 31 Atk / 31 Def / 31 SpA / 31 SpD / 31 Spe
+EVs: 252 Def / 252 SpD / 6 Spe
+- Brutal Swing
+- Water Gun
+- Bubble
+- Sleep Talk
+
+Wynaut
+Brave Nature
+Level: 100
+IVs: 31 HP / 31 Atk / 31 Def / 31 SpA / 31 SpD / 31 Spe
+EVs: 252 Def / 252 SpD / 6 Spe
+- Brutal Swing
+- Fly
+- Bubble
+- Sleep Talk
+
+=== DEBUG_TRAINER_AI ===
+Name: Debugger
+AI: Smart Trainer
+Class: Rival
+Battle Type: Singles
+Pic: Steven
+Gender: Male
+Music: Male
+
+Buffie (Wobbuffet)
+Brave Nature
+Level: 100
+IVs: 31 HP / 31 Atk / 31 Def / 31 SpA / 31 SpD / 31 Spe
+EVs: 252 Def / 252 SpD / 6 Spe
+- Sleep Talk
+
+Wynaut
+Brave Nature
+Level: 100
+IVs: 31 HP / 31 Atk / 31 Def / 31 SpA / 31 SpD / 31 Spe
+EVs: 252 Def / 252 SpD / 6 Spe
+- Sleep Talk
