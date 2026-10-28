@@ -14,7 +14,7 @@
 // it (TextDump_Birch). Picks are spread by the run count, so a returning
 // player hears new words each time.
 //
-// Voice (notes/v013-style.md section 6): excited, kind, a field researcher
+// Voice: excited, kind, a field researcher
 // who would rather be outside. He is the one person who may talk about the
 // region as a land he found and studies. Fallen POK@MON: rarely (about one
 // time in three when the run lost any), gently, never blame (section 5).

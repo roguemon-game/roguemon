@@ -31,7 +31,7 @@
 //   exhibit where LORE_WAY_MUSEUM puts it, a plaque under the POKéMON
 //   CENTER's picture until the town has a museum.
 //
-// Lines follow notes/v013-style.md: one idea a box, names from slots, no
+// Lines follow the game's style: one idea a box, names from slots, no
 // mechanics talk but the odd in-character tip.
 
 // ---------------------------------------------------------------------------

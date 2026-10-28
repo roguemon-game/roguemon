@@ -368,7 +368,7 @@ struct TerryMon
     u8 ppMax; // a bit per move slot with its PP raised all the way (PP MAX)
 };
 // Tuned by the challenge so a good player can win RUN 0 with them, and a
-// careless one loses (ROGUEMON.md, RUN 0's challenge, has the numbers).
+// careless one loses (measured with a test bot playing RUN 0).
 // The first six are the team; the last two his spares, in the box.
 #define TEST_TEAM_SIZE 8
 static const struct TerryMon sTestTeam[TEST_TEAM_SIZE] =

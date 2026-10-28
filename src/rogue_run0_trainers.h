@@ -619,7 +619,7 @@ static u32 Run0Leader(u32 slot, u32 *rng)
     // first three leaders of any region do.
     u32 size = step == 0 ? 4 : (step < 4 ? 5 : PARTY_SIZE);
     // The fifth to seventh gyms fought stand two under the band too: the
-    // fair bot's numbers showed a wall there (ROGUEMON.md, RUN 0's challenge).
+    // test bot's runs showed a wall there.
     u32 ace = Rogue_Run0GymAce(step) - (step < 3 || (step >= 4 && step <= 6) ? 2 : 0) + Run0TrainerBonus() + (remember ? 2 : 0);
     u32 iv = remember ? 31 : 14 + step * 2, i;
 
@@ -698,7 +698,7 @@ static void Run0EvolvedMon(u32 i, u16 species, u32 level, u32 iv, u32 tags)
 static const struct Run0LeaderMon sFirstPlayer[PARTY_SIZE] =
 {
     // A Gen 3 player's team: the moves and items of the old games, no
-    // setting up (the fair bot's League runs all ended here at 95 with
+    // setting up (the test bot's League runs all ended here at 95 with
     // Spore, Dragon Dance and Swords Dance on it).
     // No Roar, no Quick Claws, no Fly (a turn in the air): its four attacks.
     { SPECIES_MANECTRIC, ITEM_MAGNET,       NATURE_TIMID,   0, { MOVE_THUNDERBOLT, MOVE_CRUNCH, MOVE_QUICK_ATTACK, MOVE_FLAMETHROWER } },

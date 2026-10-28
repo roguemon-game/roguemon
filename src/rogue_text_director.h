@@ -2,9 +2,9 @@
 #define GUARD_ROGUE_TEXT_DIRECTOR_H
 
 // RUN 0's words (Roguémon v1.0): the Director, the people it made and the
-// people it did not. The script these come from, with its voice notes, is
-// scratch/v100-story/run0-script.md in the project folder; ROGUEMON.md
-// (RUN 0, the story) says where each is said.
+// people it did not. They are written from a script for RUN 0's story,
+// with notes on each speaker's voice; src/rogue_run0_story.c says where
+// each is said.
 //
 // Portable C, as the other text domains (the host test, directortest.py,
 // fills every line with the longest values and checks it fits). The text is

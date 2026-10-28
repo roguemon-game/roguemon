@@ -21,7 +21,12 @@ Every time you start, Professor Birch shows you a land nobody has seen before: t
 
 ## Source code
 
-This repository holds the game's source, a fork of pokeemerald-expansion. The `main` branch holds the source of the latest release, v1.1.5-beta. The region generator is in `src/rogue_gen*.c` and `src/rogue_gen_*.h`, and the run rules are in `src/rogue*.c`. `INSTALL.md` covers the build toolchain. Run `make` to build `pokeemerald.gba`. Bug reports go to the Discord.
+This repository holds the game's source, a fork of pokeemerald-expansion. The `main` branch holds the source of the latest release, v1.1.5-beta, and building it gives exactly that release's ROM.
+
+- [INSTALL.md](INSTALL.md): build the ROM with `make`.
+- [ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together and where to start.
+- [tools/roguemon](tools/roguemon/README.md): check and preview generated regions on your computer, without the ROM.
+- [CONTRIBUTING.md](CONTRIBUTING.md): bug reports (on the Discord) and pull requests.
 
 ## Credits
 

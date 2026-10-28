@@ -327,25 +327,27 @@ ifeq ($(SETUP_PREREQS),1)
 endif
 
 # Collect sources
-C_SRCS_IN := $(wildcard $(C_SUBDIR)/*.c $(C_SUBDIR)/*/*.c $(C_SUBDIR)/*/*/*.c)
+# roguemon: each list is sorted on its own, so the link order (and with LTO the
+# ROM) does not depend on the locale (make 3.81 sorts wildcards by locale).
+C_SRCS_IN := $(sort $(wildcard $(C_SUBDIR)/*.c)) $(sort $(wildcard $(C_SUBDIR)/*/*.c)) $(sort $(wildcard $(C_SUBDIR)/*/*/*.c))
 C_SRCS := $(foreach src,$(C_SRCS_IN),$(if $(findstring .inc.c,$(src)),,$(src)))
 C_OBJS := $(patsubst $(C_SUBDIR)/%.c,$(C_BUILDDIR)/%.o,$(C_SRCS))
 
-TEST_SRCS_IN := $(wildcard $(TEST_SUBDIR)/*.c $(TEST_SUBDIR)/*/*.c $(TEST_SUBDIR)/*/*/*.c)
+TEST_SRCS_IN := $(sort $(wildcard $(TEST_SUBDIR)/*.c)) $(sort $(wildcard $(TEST_SUBDIR)/*/*.c)) $(sort $(wildcard $(TEST_SUBDIR)/*/*/*.c))
 TEST_SRCS := $(foreach src,$(TEST_SRCS_IN),$(if $(findstring .inc.c,$(src)),,$(src)))
 TEST_OBJS := $(patsubst $(TEST_SUBDIR)/%.c,$(TEST_BUILDDIR)/%.o,$(TEST_SRCS))
 TEST_OBJS_REL := $(patsubst $(OBJ_DIR)/%,%,$(TEST_OBJS))
 
-C_ASM_SRCS := $(wildcard $(C_SUBDIR)/*.s $(C_SUBDIR)/*/*.s $(C_SUBDIR)/*/*/*.s)
+C_ASM_SRCS := $(sort $(wildcard $(C_SUBDIR)/*.s)) $(sort $(wildcard $(C_SUBDIR)/*/*.s)) $(sort $(wildcard $(C_SUBDIR)/*/*/*.s))
 C_ASM_OBJS := $(patsubst $(C_SUBDIR)/%.s,$(C_BUILDDIR)/%.o,$(C_ASM_SRCS))
 
-ASM_SRCS := $(wildcard $(ASM_SUBDIR)/*.s)
+ASM_SRCS := $(sort $(wildcard $(ASM_SUBDIR)/*.s))
 ASM_OBJS := $(patsubst $(ASM_SUBDIR)/%.s,$(ASM_BUILDDIR)/%.o,$(ASM_SRCS))
 
-DATA_ASM_SRCS := $(wildcard $(DATA_ASM_SUBDIR)/*.s)
+DATA_ASM_SRCS := $(sort $(wildcard $(DATA_ASM_SUBDIR)/*.s))
 DATA_ASM_OBJS := $(patsubst $(DATA_ASM_SUBDIR)/%.s,$(DATA_ASM_BUILDDIR)/%.o,$(DATA_ASM_SRCS))
 
-MID_SRCS := $(wildcard $(MID_SUBDIR)/*.mid)
+MID_SRCS := $(sort $(wildcard $(MID_SUBDIR)/*.mid))
 MID_OBJS := $(patsubst $(MID_SUBDIR)/%.mid,$(MID_BUILDDIR)/%.o,$(MID_SRCS))
 
 OBJS     := $(C_OBJS) $(C_ASM_OBJS) $(ASM_OBJS) $(DATA_ASM_OBJS) $(MID_OBJS)
