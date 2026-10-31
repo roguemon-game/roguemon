@@ -199,6 +199,8 @@ u32 Rogue_GetGymLeaderType(u32 gym);
 // Fly from the region map.
 bool32 Rogue_CanFlyTo(u32 place);
 void Rogue_SetFlyWarp(u32 place);
+// Teleport's spot: in front of the POKeMON CENTER just entered.
+void Rogue_SetCenterRespawn(void);
 
 // Dungeons (src/rogue.c): the dungeon the player is in or by, or -1, and
 // helpers src/rogue_dungeon.c shares.

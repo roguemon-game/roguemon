@@ -1799,7 +1799,10 @@ void UpdateTimeOfDay(bool32 updateBlend)
 // Whether a map type is naturally lit/outside
 bool32 MapHasNaturalLight(enum MapType mapType)
 {
+    // roguemon: no tint without a working clock. An emulator with no RTC
+    // reads as midnight, so the whole run was tinted as night.
     return (OW_ENABLE_DNS
+         && !(RtcGetErrorStatus() & (RTC_INIT_ERROR | RTC_ERR_FLAG_MASK))
          && (mapType == MAP_TYPE_TOWN
           || mapType == MAP_TYPE_CITY
           || mapType == MAP_TYPE_ROUTE

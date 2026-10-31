@@ -2750,7 +2750,11 @@ static void PublishSlot(struct MapSlot *s, u32 place)
 // is about to refresh. So the next map's neighbours are usually ready before
 // the player walks into it, and crossing a map edge never waits for them.
 
-#define GEN_STACK_WORDS 640
+// Interrupts run on this stack too while the thread has it. The deepest
+// seen on mGBA is about 1900 bytes (a dungeon floor); 2560 left too little
+// room for My Boy!, whose interrupts land deeper (v1.1.5-test fixed its
+// first-map crash).
+#define GEN_STACK_WORDS 768
 static EWRAM_DATA u32 sGenStack[GEN_STACK_WORDS] = {0};
 static EWRAM_DATA u32 sMainSp = 0, sGenSp = 0;
 static EWRAM_DATA u8 sJobPlace = 0, sJobSlot = 0;
@@ -8466,6 +8470,33 @@ void Rogue_SetFlyWarp(u32 place)
         }
     }
     SetWarpDestination(ROGUE_GROUP, place, WARP_ID_NONE, x, y);
+}
+
+// Map script of a town's POKeMON CENTER, on entering: Teleport (and a
+// whiteout warp) lead to the spot in front of its door, as Emerald's
+// setrespawn does. Before, only the run's start set it.
+void Rogue_SetCenterRespawn(void)
+{
+    s32 place = Rogue_GetCurrentPlace();
+    const struct RogueMap *m;
+    u32 i;
+    if (place < 0 || gSaveBlock1Ptr->location.mapNum != MAP_NUM(MAP_ROGUE_POKEMON_CENTER))
+        return;
+    m = Rogue_GetPlaceMap(place);
+    if (m == NULL)
+        return;
+    for (i = 0; i < m->nWarps; i++)
+    {
+        if (m->warps[i].kind == RWARP_PC)
+        {
+            gSaveBlock1Ptr->lastHealLocation.mapGroup = ROGUE_GROUP;
+            gSaveBlock1Ptr->lastHealLocation.mapNum = place;
+            gSaveBlock1Ptr->lastHealLocation.warpId = WARP_ID_NONE;
+            gSaveBlock1Ptr->lastHealLocation.x = m->warps[i].x;
+            gSaveBlock1Ptr->lastHealLocation.y = m->warps[i].y + 1;
+            return;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

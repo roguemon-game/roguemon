@@ -21,7 +21,7 @@ Every time you start, Professor Birch shows you a land nobody has seen before: t
 
 ## Source code
 
-This repository holds the game's source, a fork of pokeemerald-expansion. The `main` branch holds the source of the latest release, v1.1.5-beta, and building it gives exactly that release's ROM.
+This repository holds the game's source, a fork of pokeemerald-expansion. The `main` branch holds the source of the latest release, v1.1.6-beta, and building it gives exactly that release's ROM.
 
 - [INSTALL.md](INSTALL.md): build the ROM with `make`.
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the code fits together and where to start.

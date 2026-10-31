@@ -1,6 +1,6 @@
 # Roguémon Player Guide
 
-Version 1.1.5-beta
+Version 1.1.6-beta
 
 ## What Roguémon is
 

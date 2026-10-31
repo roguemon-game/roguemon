@@ -737,6 +737,7 @@ gSpecials::
 	def_special Rogue_ExplorerEscape, waitstate=1
 	def_special Rogue_BufferRuinsScholar
 	def_special Rogue_BufferLoreBook
+	def_special Rogue_SetCenterRespawn
 	def_special Rogue_BufferLoreTV
 	def_special Rogue_BufferRegionBook
 	def_special Rogue_BufferHouseSign

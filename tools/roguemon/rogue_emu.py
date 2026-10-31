@@ -454,6 +454,8 @@ class GameData:
         volatiles = {'perishSong': 1, 'destinyBond': 3, 'wrapped': 1, 'escapePrevention': 1}
         for v, ones in volatiles.items():
             body += 'const struct BattlePokemon bmProbe_%s = {.volatiles = {.%s = %d}};\n' % (v, v, ones)
+        # And a species' national dex number (natDexNum:16).
+        body += 'const struct SpeciesInfo spDexProbe = {.natDexNum = 0xFFFF};\n'
         syms, rodata = self.compile_probe(body)
         self.off = {k: syms[k][1] - 1 for k in fields}
         size = self.off['moveInfoSize']
@@ -471,6 +473,9 @@ class GameData:
             base = syms['bmProbe_' + v][0]
             blob = rodata[base: base + self.off['bmSize']]
             self.bm_volatile[v] = [(i, b) for i, b in enumerate(blob) if b]
+        base = syms['spDexProbe'][0]
+        blob = rodata[base: base + self.off['speciesSize']]
+        self.species_dex_at = [i for i, b in enumerate(blob) if b][0]
         # The type chart, u32 entries in 4.12 fixed point.
         addr = self.sym['gTypeEffectivenessTable']
         raw = self.rom_bytes(addr, NUM_TYPES * NUM_TYPES * 4)
@@ -546,6 +551,12 @@ class GameData:
         self.load_tables()
         addr = self.sym['gSpeciesInfo'] + species * self.off['speciesSize'] + self.off['speciesName']
         return decode_text(self.rom_bytes(addr, 13))
+
+    def species_dex(self, species):
+        """The species' national dex number (SpeciesToNationalPokedexNum)."""
+        self.load_tables()
+        addr = self.sym['gSpeciesInfo'] + species * self.off['speciesSize'] + self.species_dex_at
+        return struct.unpack('<H', self.rom_bytes(addr, 2))[0]
 
     def effectiveness(self, move_type, def_types):
         self.load_tables()

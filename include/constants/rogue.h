@@ -2,7 +2,7 @@
 #define GUARD_CONSTANTS_ROGUE_H
 
 // Version of this build. tools/roguemon reads it for release names and covers.
-#define ROGUEMON_VERSION "1.1.5-beta"
+#define ROGUEMON_VERSION "1.1.6-beta"
 
 // Save data. These reuse vars and flags that vanilla Emerald leaves unused.
 #define VAR_ROGUE_SEED_LO     VAR_UNUSED_0x40F7

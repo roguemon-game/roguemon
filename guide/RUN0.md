@@ -1,6 +1,6 @@
 # RUN 0 Guide
 
-Roguémon v1.1.5-beta
+Roguémon v1.1.6-beta
 
 This guide covers RUN 0, the secret last mode of Roguémon. The main guide covers the normal game. Here we assume you know how a Roguémon run works: a new region, eight badges, the League, and Nuzlocke rules (one catch per area, fainted Pokémon are gone, a full wipe ends the run).
 
