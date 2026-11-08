@@ -495,7 +495,8 @@ void Rogue_Run0BufferPatch(void)
 
 u32 Rogue_Run0ShopPrice(u32 price, u16 item)
 {
-    (void)item;
+    // The prize counter's Mega Stones (src/rogue_prize.c).
+    price = Rogue_PrizePrice(price, item);
     if (!Rogue_IsRun0())
         return price;
     if (Rogue_Run0PatchOn(RUN0_PATCH_GIFT_PRICES))

@@ -1176,3 +1176,54 @@ u32 RogueGen_SpecialtyStock(const struct RogueRegion *r, u8 place, u8 badges, u1
     out[n] = ITEM_NONE;
     return n;
 }
+
+// ---------------------------------------------------------------------------
+// The Game Corner's prize counter: a clerk in every gym town's Mart, open
+// from ROGUE_PRIZE_BADGES. Its TMs and held items come from the seed, the
+// town and the badges won, so they change each run and grow with the
+// badges. extraTM: one more TM, for the slot the Mega Stone leaves empty
+// (the stone itself is picked in the game, from the player's own Pokemon:
+// src/rogue_prize.c). price: the game's prices, so held items dearer than
+// ROGUE_PRIZE_MAX_HELD_PRICE are left out (NULL on the host: none are).
+static u32 PrizePick(u32 *rng, u32 role, u32 stage, u16 *out, u32 n, u32 want, u32 max, u32 (*price)(u16))
+{
+    u32 i, j;
+    for (i = 0; i < 400 && n < want && n + 1 < max; i++)
+    {
+        u32 e = RogueRng_Range(rng, NUM_CATALOGUE);
+        if (sItemCatalogue[e].role != role || sItemCatalogue[e].from > stage
+         || (role == RIR_HELD && sItemCatalogue[e].from >= 5)
+         || (role == RIR_HELD && price != NULL && price(sItemCatalogue[e].item) > ROGUE_PRIZE_MAX_HELD_PRICE))
+            continue;
+        for (j = 0; j < n && out[j] != sItemCatalogue[e].item; j++)
+            ;
+        if (j == n)
+            out[n++] = sItemCatalogue[e].item;
+    }
+    return n;
+}
+
+u32 RogueGen_PrizeStock(const struct RogueRegion *r, u8 place, u8 badges, u16 *out, u32 max, bool8 extraTM,
+                         u32 (*price)(u16))
+{
+    const struct RoguePlace *p = &r->places[place];
+    u32 rng = RogueRng_Hash(r->seed, 18300 + place * 16 + (badges > 8 ? 8 : badges)), n = 0;
+    u32 stage = badges > 8 ? 8 : badges, tms;
+    if (max == 0)
+        return 0;
+    if (p->kind != RPLACE_TOWN || p->type != RTOWN_GYM || badges < RogueGen_PrizeBadges(r))
+    {
+        out[0] = ITEM_NONE;
+        return 0;
+    }
+    tms = 2 + RogueRng_Range(&rng, 2);
+    n = PrizePick(&rng, RIR_TM, stage, out, n, tms, max, price);
+    n = PrizePick(&rng, RIR_HELD, stage, out, n, n + 2, max, price);
+    // The stone's slot, when there is no stone: one more TM, drawn last so
+    // the rest of the stock stays as it was.
+    if (extraTM)
+        n = PrizePick(&rng, RIR_TM, stage, out, n, n + 1, max, price);
+    out[n] = ITEM_NONE;
+    return n;
+}
+

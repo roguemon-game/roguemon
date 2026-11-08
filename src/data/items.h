@@ -16099,6 +16099,23 @@ const struct ItemInfo gItemsInfo[] =
         .iconPic = gItemIcon_PokeshiDoll,
         .iconPalette = gItemIconPalette_PokeshiDoll,
     },
+
+    // roguemon: kept after use; Rare Candy's look.
+    [ITEM_CAP_CANDY] =
+    {
+        .name = ITEM_NAME("Cap Candy"),
+        .price = 0,
+        .importance = 1,
+        .description = COMPOUND_STRING(
+            "Levels a Pokémon\n"
+            "up to the next\n"
+            "leader's ace."),
+        .pocket = POCKET_KEY_ITEMS,
+        .type = ITEM_USE_PARTY_MENU,
+        .fieldUseFunc = ItemUseOutOfBattle_CapCandy,
+        .iconPic = gItemIcon_RareCandy,
+        .iconPalette = gItemIconPalette_RareCandy,
+    },
 };
 
 #undef ITEM_NAME

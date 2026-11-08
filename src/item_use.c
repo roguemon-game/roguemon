@@ -906,6 +906,13 @@ void ItemUseOutOfBattle_RareCandy(u8 taskId)
     SetUpItemUseCallback(taskId);
 }
 
+// roguemon: the CAP CANDY.
+void ItemUseOutOfBattle_CapCandy(u8 taskId)
+{
+    gItemUseCB = ItemUseCB_CapCandy;
+    SetUpItemUseCallback(taskId);
+}
+
 void ItemUseOutOfBattle_DynamaxCandy(u8 taskId)
 {
     gItemUseCB = ItemUseCB_DynamaxCandy;

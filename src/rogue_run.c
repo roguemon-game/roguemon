@@ -250,6 +250,11 @@ static const struct UnlockDef sUnlocks[ROGUE_NUM_UNLOCKS] =
         COMPOUND_STRING("Become CHAMPION three times."),
         COMPOUND_STRING("POKéMON of all nine regions alike.\nPick it under POKéDEX in UNLOCKS."),
     },
+    [UNLOCK_CAP_CANDY] = {
+        COMPOUND_STRING("CAP CANDY"),
+        COMPOUND_STRING("Yours from the start."),
+        COMPOUND_STRING("A CAP CANDY in the kit: levels a\nPOKéMON up to the next LEADER's ace."),
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -686,6 +691,13 @@ struct RogueRecord *Rogue_GetRecord(void)
         SET_RECORD_BITS(record, unlocks, RECORD_BITS(record, unlocks) | LadderUnlocks());
         SET_RECORD_BITS(record, runStart, RECORD_BITS(record, runStart) | LadderUnlocks());
     }
+    // The CAP CANDY (v1.1.7) is earned from the first run: an older record
+    // gets it on load, as earned before this run.
+    if (!((RECORD_BITS(record, unlocks) >> UNLOCK_CAP_CANDY) & 1))
+    {
+        SET_RECORD_BITS(record, unlocks, RECORD_BITS(record, unlocks) | UNLOCK_BIT(UNLOCK_CAP_CANDY));
+        SET_RECORD_BITS(record, runStart, RECORD_BITS(record, runStart) | UNLOCK_BIT(UNLOCK_CAP_CANDY));
+    }
     // The POKeDEX upgrades follow the wins as soon as they are counted (a
     // record from before v0.14 shows them in UNLOCKS at once, as earned
     // before the run). They are earned switched off: CLASSIC stays the
@@ -945,7 +957,7 @@ void Rogue_RecordLegendCaught(u32 legend)
 static u64 LadderUnlocks(void)
 {
     u32 runs = VarGet(VAR_ROGUE_META_RUNS);
-    u64 unlocks = 0;
+    u64 unlocks = UNLOCK_BIT(UNLOCK_CAP_CANDY); // from the first run (v1.1.7)
     if (runs >= ROGUE_EEVEE_RUNS)
         unlocks |= UNLOCK_BIT(UNLOCK_EEVEE);
     if (runs >= ROGUE_BABY_RUNS)
@@ -1439,6 +1451,7 @@ static const u8 *const sUnlockNews[ROGUE_NUM_UNLOCKS] =
     [UNLOCK_TRAINER_CANDY]   = COMPOUND_STRING("The GYM LEADERS have heard of you.\nWord gets around!\pFrom the fourth GYM on, they'll\nadd RARE CANDIES to the BADGE."),
     [UNLOCK_LATE_CAMP]       = COMPOUND_STRING("Five BADGES in one journey!\pA friend of mine camps on the road\nto the seventh GYM.\pIf your team is worn out there,\nstop by for a rest!"),
     [UNLOCK_SECOND_CHANCE]   = COMPOUND_STRING("Lost a POKéMON you wanted to catch?\pFrom your fourth BADGE on, a few\nplaces will give you another try."),
+    [UNLOCK_CAP_CANDY]       = COMPOUND_STRING("New in my kit: a CAP CANDY! It levels\na POKéMON up to the next LEADER's ace.\pIt never takes one past that, and\nyou can switch it off in UNLOCKS."),
     [UNLOCK_LUCKY_EGG]       = COMPOUND_STRING("Tough luck lately, huh? Here,\ntake this LUCKY EGG.\pA POKéMON holding it gains more\nEXP. Chin up!"),
     [UNLOCK_EEVEE]           = COMPOUND_STRING("An EEVEE has moved into my lab!\nIt's yours to choose, every time."),
     [UNLOCK_BABIES]          = COMPOUND_STRING("A nursery sent me a baby POKéMON.\nWith love, it'll grow up fast!"),
@@ -1462,7 +1475,7 @@ static const u8 sNewsOrder[ROGUE_NUM_UNLOCKS] =
     UNLOCK_SPARE_STARTERS, UNLOCK_TYPE_CHARM, UNLOCK_HIDDEN_ABILITY, UNLOCK_EGG_MOVE, UNLOCK_SHINY_CLAUSE,
     UNLOCK_SHINY_CHARM, UNLOCK_FOSSILS, UNLOCK_RARE_FINDS, UNLOCK_RIVAL_GIFT, UNLOCK_HARDCORE, UNLOCK_EXPLORER,
     UNLOCK_MARKING_MAP, UNLOCK_MASTER_BALL, UNLOCK_DOWSING, UNLOCK_TRAINER_CANDY, UNLOCK_LATE_CAMP,
-    UNLOCK_SECOND_CHANCE, UNLOCK_LUCKY_EGG,
+    UNLOCK_SECOND_CHANCE, UNLOCK_LUCKY_EGG, UNLOCK_CAP_CANDY,
 };
 
 // Unlocks the professor has not told about yet. Ones switched off in the

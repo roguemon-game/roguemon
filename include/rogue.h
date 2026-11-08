@@ -188,6 +188,7 @@ void Rogue_CheckFossilTown(void);
 // HARDCORE RULES: this run plays by them, and the current level cap.
 bool32 Rogue_IsHardcore(void);
 u32 Rogue_GetLevelCap(void);
+void Rogue_BufferCapBossName(u8 *dest);
 // RARE FINDS: the professor's hint about where the rare find lives, into
 // STR_VAR_1. VAR_RESULT is FALSE when the unlock is off.
 void Rogue_BufferRareFindHint(void);
@@ -525,6 +526,22 @@ bool32 Rogue_HasFieldMoveBadge(u32 fieldMove);
 bool32 Rogue_IsFieldMoveBadgeWon(u32 fieldMove);
 u32 Rogue_WonGyms(void);
 u32 Rogue_BadgeCount(void);
+
+// --- src/rogue_prize.c: the Game Corner's prize counter and the Mega Stones ---
+bool32 Rogue_IsMegaStone(u16 item);
+u32 Rogue_PrizePrice(u32 price, u16 item);
+bool32 Rogue_PrizeOwnedAlready(u16 item);
+void Rogue_PreparePrizeCounter(void);
+void Rogue_OpenPrizeCounter(void);
+void Rogue_PrepareMegaGift(void);
+void Rogue_BufferMegaChoice(void);
+void Rogue_TakeMegaChoice(void);
+u16 Rogue_PrizeCounterStone(void);
+void Rogue_OnPrizeBought(u16 item);
+void Rogue_MarkMegaGiftGiven(void);
+void Rogue_MegaChoiceCount(void);
+void Rogue_ApplyTestMega(void);
+extern u8 gRogueTestMega;
 // Items (src/rogue_gen_items.h through src/rogue.c).
 void Rogue_PrepareHiddenItem(void);
 bool32 Rogue_GetTownGift(u32 town, bool32 folk);

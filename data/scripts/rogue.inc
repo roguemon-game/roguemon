@@ -349,6 +349,10 @@ Rogue_EventScript_GameCornerSign::
 	msgbox Rogue_Text_GameCornerSign, MSGBOX_SIGN
 	end
 
+Rogue_EventScript_GameCornerOpenSign::
+	msgbox Rogue_Text_GameCornerOpenSign, MSGBOX_SIGN
+	end
+
 Rogue_EventScript_BattleTentSign::
 	msgbox Rogue_Text_BattleTentSign, MSGBOX_SIGN
 	end
@@ -498,6 +502,10 @@ Rogue_Text_HideoutSign:
 Rogue_Text_GameCornerSign:
 	.string "GAME CORNER\n"
 	.string "Closed for renovations. Sorry!$"
+
+Rogue_Text_GameCornerOpenSign:
+	.string "GAME CORNER\n"
+	.string "Slots, roulette and prizes!$"
 
 Rogue_Text_BattleTentSign:
 	.string "BATTLE TENT\n"
@@ -728,6 +736,217 @@ Rogue_EventScript_SpecialtyClerk::
 	msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
 	release
 	end
+
+@ The Game Corner's prize counter in every gym town's Mart, from the 2nd
+@ badge (src/rogue_prize.c). From the 5th it also gives the MEGA STONE the
+@ 5th leader could not (and the MEGA RING to a run saved before v1.1.7).
+@ The Game Corner. Its coin seller is Emerald's own (Mauville's),
+@ after the COIN CASE, given with the Game Corner (RogueGen_PrizeBadges).
+Rogue_EventScript_GameCornerCoins::
+	lock
+	faceplayer
+	call Rogue_EventScript_CoinCaseGift
+	release
+	goto MauvilleCity_GameCorner_EventScript_CoinsClerk
+
+Rogue_EventScript_GameCornerNews:
+	special Rogue_GameCornerNewsDue
+	goto_if_eq VAR_RESULT, FALSE, Rogue_EventScript_CoinCaseGiftEnd
+	msgbox Rogue_Text_GameCornerNews, MSGBOX_DEFAULT
+	checkitem ITEM_COIN_CASE
+	goto_if_eq VAR_RESULT, TRUE, Rogue_EventScript_CoinCaseGiftEnd
+	giveitem ITEM_COIN_CASE
+	return
+
+Rogue_EventScript_CoinCaseGift:
+	special Rogue_CoinCaseDue
+	goto_if_eq VAR_RESULT, FALSE, Rogue_EventScript_CoinCaseGiftEnd
+	msgbox Rogue_Text_CoinCaseGift, MSGBOX_DEFAULT
+	giveitem ITEM_COIN_CASE
+Rogue_EventScript_CoinCaseGiftEnd:
+	return
+
+@ The prize desk, paid in COINS (src/rogue_prize.c): TMs, held items, a
+@ MEGA STONE for the player's own Pokemon from the 5th badge, and 1 to 3
+@ of the region's Pokemon. Opens with the Game Corner (2nd badge, or 1st).
+Rogue_EventScript_GameCornerPrizeDesk::
+	lock
+	faceplayer
+	special Rogue_PrepareCoinDesk
+	goto_if_eq VAR_RESULT, 0, Rogue_EventScript_PrizeClosed
+	call Rogue_EventScript_CoinCaseGift
+	setvar VAR_0x8004, 1
+	call Rogue_EventScript_MegaGift
+	msgbox Rogue_Text_PrizeWelcome, MSGBOX_DEFAULT
+	showcoinsbox 20, 0
+Rogue_EventScript_DeskMenu:
+	message Rogue_Text_DeskWhich
+	waitmessage
+	special Rogue_PrepareCoinDesk
+	copyvar VAR_0x8005, VAR_RESULT
+	setvar VAR_0x8004, 0
+	@ (The tests tell the desk's menu from the MEGA STONE gift's by this.)
+	setvar VAR_0x8006, 0xDE5C
+Rogue_EventScript_DeskPush:
+	special Rogue_BufferDeskChoice
+	dynmultipush Rogue_Text_Str1, VAR_0x8004
+	addvar VAR_0x8004, 1
+	goto_if_lt VAR_0x8004, VAR_0x8005, Rogue_EventScript_DeskPush
+	dynmultistack 0, 0, FALSE, 6, FALSE, 0, DYN_MULTICHOICE_CB_NONE
+	setvar VAR_0x8006, 0
+	special Rogue_TakeDeskChoice
+	goto_if_eq VAR_RESULT, 0, Rogue_EventScript_DeskBye
+	goto_if_eq VAR_RESULT, 1, Rogue_EventScript_DeskShort
+	goto_if_eq VAR_RESULT, 2, Rogue_EventScript_DeskOwned
+	goto_if_eq VAR_RESULT, 4, Rogue_EventScript_DeskMon
+	goto_if_eq VAR_RESULT, 5, Rogue_EventScript_DeskFull
+	giveitem VAR_0x8000
+	goto_if_eq VAR_RESULT, FALSE, Rogue_EventScript_DeskMenu
+	special Rogue_PayDesk
+	updatecoinsbox
+	goto Rogue_EventScript_DeskMenu
+Rogue_EventScript_DeskMon:
+	playfanfare MUS_OBTAIN_ITEM
+	message Rogue_Text_DeskMon
+	waitmessage
+	waitfanfare
+	updatecoinsbox
+	goto Rogue_EventScript_DeskMenu
+Rogue_EventScript_DeskShort:
+	msgbox Rogue_Text_DeskShort, MSGBOX_DEFAULT
+	goto Rogue_EventScript_DeskMenu
+Rogue_EventScript_DeskOwned:
+	msgbox gText_ThatItemIsSoldOut, MSGBOX_DEFAULT
+	goto Rogue_EventScript_DeskMenu
+Rogue_EventScript_DeskFull:
+	msgbox Rogue_Text_DeskFull, MSGBOX_DEFAULT
+	goto Rogue_EventScript_DeskMenu
+Rogue_EventScript_DeskBye:
+	hidecoinsbox
+	msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
+	release
+	end
+
+Rogue_EventScript_PrizeClerk::
+	lock
+	faceplayer
+	special Rogue_PreparePrizeCounter
+	goto_if_eq VAR_RESULT, FALSE, Rogue_EventScript_PrizeClosed
+	setvar VAR_0x8004, 1
+	call Rogue_EventScript_MegaGift
+	special Rogue_PreparePrizeCounter
+	message Rogue_Text_PrizeWelcome
+	waitmessage
+	special Rogue_OpenPrizeCounter
+	waitstate
+	msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
+	release
+	end
+
+Rogue_EventScript_PrizeClosed:
+	msgbox Rogue_Text_PrizeClosed, MSGBOX_DEFAULT
+	release
+	end
+
+@ The MEGA RING and a MEGA STONE for one of the player's own Pokemon:
+@ after the 4th leader (VAR_0x8004 0) or owed at the prize counter (1).
+Rogue_EventScript_MegaGift::
+	special Rogue_PrepareMegaGift
+	goto_if_eq VAR_RESULT, 0xFF, Rogue_EventScript_MegaGiftEnd
+	@ giveitem uses the special vars, so the choices stay in the C side
+	@ (Rogue_MegaChoiceCount, Rogue_TakeMegaChoice) across the ring.
+	call_if_eq VAR_0x8001, TRUE, Rogue_EventScript_MegaRing
+	special Rogue_MegaChoiceCount
+	goto_if_eq VAR_RESULT, 0, Rogue_EventScript_MegaNoneFit
+	goto_if_eq VAR_RESULT, 1, Rogue_EventScript_MegaOne
+	msgbox Rogue_Text_MegaChoose, MSGBOX_DEFAULT
+	message Rogue_Text_MegaWhich
+	waitmessage
+	special Rogue_MegaChoiceCount
+	copyvar VAR_0x8005, VAR_RESULT
+	setvar VAR_0x8004, 0
+Rogue_EventScript_MegaPush:
+	special Rogue_BufferMegaChoice
+	dynmultipush Rogue_Text_Str1, VAR_0x8004
+	addvar VAR_0x8004, 1
+	goto_if_lt VAR_0x8004, VAR_0x8005, Rogue_EventScript_MegaPush
+	dynmultistack 0, 0, TRUE, 5, FALSE, 0, DYN_MULTICHOICE_CB_NONE
+	special Rogue_TakeMegaChoice
+	closemessage
+	goto Rogue_EventScript_MegaGive
+Rogue_EventScript_MegaOne:
+	msgbox Rogue_Text_MegaStone, MSGBOX_DEFAULT
+	setvar VAR_RESULT, 0
+	special Rogue_TakeMegaChoice
+Rogue_EventScript_MegaGive:
+	giveitem VAR_0x8000
+	@ A full bag keeps the gift owed.
+	goto_if_eq VAR_RESULT, FALSE, Rogue_EventScript_MegaGiftEnd
+	special Rogue_MarkMegaGiftGiven
+Rogue_EventScript_MegaGiftEnd:
+	return
+
+Rogue_EventScript_MegaRing:
+	msgbox Rogue_Text_MegaRing, MSGBOX_DEFAULT
+	giveitem ITEM_MEGA_RING
+	return
+
+Rogue_EventScript_MegaNoneFit:
+	msgbox Rogue_Text_MegaNoneFit, MSGBOX_DEFAULT
+	return
+
+Rogue_Text_PrizeWelcome:
+	.string "Welcome to the GAME CORNER's\n"
+	.string "PRIZE COUNTER! New prizes each run.$"
+
+Rogue_Text_GameCornerNews:
+	.string "Oh, and with that BADGE, the GAME\n"
+	.string "CORNER will let you in!\p"
+	.string "It's in {STR_VAR_1}: slots, roulette\n"
+	.string "and prizes. Take this COIN CASE!$"
+
+Rogue_Text_CoinCaseGift:
+	.string "A BADGE holder! Then you may play.\n"
+	.string "Here's a COIN CASE for your COINS.$"
+
+Rogue_Text_DeskWhich:
+	.string "Which prize would you like?$"
+
+Rogue_Text_DeskShort:
+	.string "You don't have enough COINS.$"
+
+Rogue_Text_DeskFull:
+	.string "There's no room for another POKéMON,\n"
+	.string "in your party or your BOXES.$"
+
+Rogue_Text_DeskMon:
+	.string "{PLAYER} received {STR_VAR_1}!$"
+
+Rogue_Text_PrizeClosed:
+	.string "The GAME CORNER's PRIZE COUNTER opens\n"
+	.string "for TRAINERS with two BADGES.\p"
+	.string "Come back once you've won another!$"
+
+Rogue_Text_MegaRing:
+	.string "Your POKeMON trust you. Take this\n"
+	.string "MEGA RING: with it, a POKeMON holding\l"
+	.string "its MEGA STONE can MEGA EVOLVE.$"
+
+Rogue_Text_MegaStone:
+	.string "And a MEGA STONE for your own team.$"
+
+Rogue_Text_MegaChoose:
+	.string "And a MEGA STONE for your own team.\n"
+	.string "More than one would suit you...$"
+
+Rogue_Text_MegaWhich:
+	.string "Which MEGA STONE will you take?$"
+
+Rogue_Text_MegaNoneFit:
+	.string "None of your POKeMON can MEGA EVOLVE\n"
+	.string "yet, so I have no stone that suits.\p"
+	.string "Visit a GAME CORNER PRIZE COUNTER\n"
+	.string "with one that can: it's yours free.$"
 
 Rogue_EventScript_Run0Mart:
 	special Rogue_Run0OpenMart
@@ -1320,6 +1539,12 @@ Rogue_EventScript_LeaderDefeated\gym\():
 	special Rogue_PrepareLeaderTM
 	giveitem VAR_0x8000
 	call Rogue_EventScript_LeaderKey
+	@ The badge that opens the way to the region's Game Corner: where it
+	@ is, and the COIN CASE (src/rogue_prize.c).
+	call Rogue_EventScript_GameCornerNews
+	@ The 5th badge: the MEGA RING and a MEGA STONE (src/rogue_prize.c).
+	setvar VAR_0x8004, 0
+	call Rogue_EventScript_MegaGift
 	special Rogue_CheckTrainerCandy
 	call_if_eq VAR_RESULT, TRUE, Rogue_EventScript_TrainerCandy
 	@ Then the leader's own words: their town, another leader ahead.

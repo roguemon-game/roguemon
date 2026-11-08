@@ -711,6 +711,19 @@ gSpecials::
 	def_special Rogue_MarkFolkGiftGiven
 	def_special Rogue_PrepareSpecialtyShop
 	def_special Rogue_OpenSpecialtyShop
+	def_special Rogue_PreparePrizeCounter
+	def_special Rogue_OpenPrizeCounter
+	def_special Rogue_CoinCaseDue
+	def_special Rogue_GameCornerNewsDue
+	def_special Rogue_PrepareCoinDesk
+	def_special Rogue_BufferDeskChoice
+	def_special Rogue_TakeDeskChoice
+	def_special Rogue_PayDesk
+	def_special Rogue_PrepareMegaGift
+	def_special Rogue_BufferMegaChoice
+	def_special Rogue_TakeMegaChoice
+	def_special Rogue_MarkMegaGiftGiven
+	def_special Rogue_MegaChoiceCount
 	def_special Rogue_MarkGiftGiven
 	def_special Rogue_BufferBadge
 	def_special Rogue_BufferBadgeInfo

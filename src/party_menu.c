@@ -35,6 +35,7 @@
 #include "item_menu.h"
 #include "item_use.h"
 #include "caps.h"
+#include "rogue.h"
 #include "link.h"
 #include "link_rfu.h"
 #include "mail.h"
@@ -5912,6 +5913,51 @@ void ItemUseCB_RareCandy(u8 taskId, TaskFunc task)
                 gTasks[taskId].func = task;
         }
     }
+}
+
+// roguemon: the CAP CANDY. Levels the Pokemon up to the next
+// leader's ace (Rogue_GetLevelCap, even outside Hardcore) in one go, as an
+// Exp. Candy does: the moves of each level, then any evolution. The candy is
+// kept; at or over the cap it says who the Pokemon is ready for.
+void ItemUseCB_CapCandy(u8 taskId, TaskFunc task)
+{
+    struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][gPartyMenu.slotId];
+    s16 *arrayPtr = sPartyMenuInternal->data;
+    u32 cap = Rogue_GetLevelCap();
+
+    sInitialLevel = GetMonData(mon, MON_DATA_LEVEL);
+    PlaySE(SE_SELECT);
+    if (cap > MAX_LEVEL)
+        cap = MAX_LEVEL;
+    if (sInitialLevel >= cap || GetMonData(mon, MON_DATA_IS_EGG))
+    {
+        sInitialLevel = 0;
+        sFinalLevel = 0;
+        gPartyMenuUseExitCallback = FALSE;
+        Rogue_BufferCapBossName(gStringVar2);
+        StringExpandPlaceholders(gStringVar4, COMPOUND_STRING("It's ready for {STR_VAR_2}.{PAUSE_UNTIL_PRESS}"));
+        DisplayPartyMenuMessage(gStringVar4, TRUE);
+        ScheduleBgCopyTilemapToVram(2);
+        gTasks[taskId].func = Task_ReturnToChooseMonAfterText;
+        return;
+    }
+    BufferMonStatsToTaskData(mon, arrayPtr);
+    {
+        u32 exp = gExperienceTables[gSpeciesInfo[GetMonData(mon, MON_DATA_SPECIES)].growthRate][cap];
+        SetMonData(mon, MON_DATA_EXP, &exp);
+        CalculateMonStats(mon);
+    }
+    BufferMonStatsToTaskData(mon, &sPartyMenuInternal->data[NUM_STATS]);
+    sFinalLevel = GetMonData(mon, MON_DATA_LEVEL);
+    gPartyMenuUseExitCallback = TRUE;
+    UpdateMonDisplayInfoAfterRareCandy(gPartyMenu.slotId, mon);
+    GetMonNickname(mon, gStringVar1);
+    PlayFanfareByFanfareNum(FANFARE_LEVEL_UP);
+    ConvertIntToDecimalStringN(gStringVar2, sFinalLevel, STR_CONV_MODE_LEFT_ALIGN, 3);
+    StringExpandPlaceholders(gStringVar4, gText_PkmnElevatedToLvVar2);
+    DisplayPartyMenuMessage(gStringVar4, TRUE);
+    ScheduleBgCopyTilemapToVram(2);
+    gTasks[taskId].func = Task_DisplayLevelUpStatsPg1;
 }
 
 static void UpdateMonDisplayInfoAfterRareCandy(u8 slot, struct Pokemon *mon)

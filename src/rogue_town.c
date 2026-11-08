@@ -45,6 +45,9 @@ extern const struct MapLayout *const gMapLayouts[];
 extern const struct MapHeader *const *const gMapGroups[];
 
 extern const u8 Rogue_EventScript_HouseChat[];
+extern const u8 Rogue_EventScript_GameCornerPrizeDesk[], Rogue_EventScript_GameCornerCoins[];
+extern const u8 MauvilleCity_GameCorner_EventScript_CoinsClerk[], MauvilleCity_GameCorner_EventScript_Woman2[],
+                MauvilleCity_GameCorner_EventScript_Gentleman[], MauvilleCity_GameCorner_EventScript_OldMan[];
 extern const u8 Rogue_EventScript_CenterFolk[];
 extern const u8 Rogue_EventScript_RestTraveler[];
 extern const u8 Rogue_EventScript_ReadThing[];
@@ -335,6 +338,9 @@ void Rogue_BufferTownSign(void)
     Rogue_TextCtx(&c, &st, place, RSPK_SIGN);
     RogueText_TownMotto(&c, (char *)gStringVar2, sizeof(gStringVar2));
     Rogue_TextToGame(gStringVar2);
+    // The region's one Game Corner says so on the town sign.
+    if ((s32)place == RogueGen_GameCornerTown(Rogue_GetRegion()))
+        StringCopy(gStringVar2, COMPOUND_STRING("Home of the GAME CORNER!"));
 }
 
 // Script special: the first gym's town into STR_VAR_1, for the rival.
@@ -452,6 +458,9 @@ static const struct InteriorDef sSpecialInteriors[] =
     [RINT_NAME_RATER] = { LAYOUT_HOUSE_WITH_BED, 4, 7, 3, { { 7, 5 }, { 1, 5 }, { 9, 6 } } },
     [RINT_MOVE_DELETER] = { LAYOUT_HOUSE2, 3, 7, 4, { { 4, 4 }, { 2, 3 }, { 7, 4 } } },
     [RINT_REST]       = { LAYOUT_HOUSE1, 3, 8, 4, { { 7, 4 }, { 6, 6 }, { 4, 4 } } },
+    // Mauville's Game Corner: its door, the coin seller, the prize desk and
+    // two of its regulars.
+    [RINT_GAME_CORNER] = { LAYOUT_MAUVILLE_CITY_GAME_CORNER, 11, 10, 12, { { 11, 2 }, { 13, 2 }, { 7, 3 } } },
 };
 
 // RUN 0's library: Route 114's Fossil Maniac's house, its bookshelves, and
@@ -752,6 +761,23 @@ static const struct MapHeader *BuildHouse(u32 place, u32 house)
     case RINT_SIGNATURE:
         BuildSigPeople(place, def);
         break;
+    case RINT_GAME_CORNER:
+    {
+        // Emerald's own slot machines and roulette tables: Mauville's sign
+        // events, read straight from ROM (no copy in EWRAM). Its coin seller
+        // sells coins for money as in Emerald; the prize desk is ours
+        // (src/rogue_prize.c).
+        const struct MapEvents *gc = gMapGroups[MAP_GROUP(MAP_MAUVILLE_CITY_GAME_CORNER)][MAP_NUM(MAP_MAUVILLE_CITY_GAME_CORNER)]->events;
+        static const u8 regular2[] = { 16, 5 }, regular3[] = { 20, 8 };
+        AddInteriorObject(OBJ_EVENT_GFX_BEAUTY, def->spots[0], ROLE_CHAT, Rogue_EventScript_GameCornerCoins, MOVEMENT_TYPE_FACE_DOWN);
+        AddInteriorObject(OBJ_EVENT_GFX_BEAUTY, def->spots[1], ROLE_CHAT, Rogue_EventScript_GameCornerPrizeDesk, MOVEMENT_TYPE_FACE_DOWN);
+        AddInteriorObject(OBJ_EVENT_GFX_GIRL_2, def->spots[2], ROLE_CHAT, MauvilleCity_GameCorner_EventScript_Woman2, MOVEMENT_TYPE_FACE_UP);
+        AddInteriorObject(OBJ_EVENT_GFX_GENTLEMAN, regular2, ROLE_CHAT, MauvilleCity_GameCorner_EventScript_Gentleman, MOVEMENT_TYPE_FACE_LEFT);
+        AddInteriorObject(OBJ_EVENT_GFX_OLD_MAN, regular3, ROLE_CHAT, MauvilleCity_GameCorner_EventScript_OldMan, MOVEMENT_TYPE_FACE_UP);
+        sInteriorEvents.bgEventCount = gc->bgEventCount;
+        sInteriorEvents.bgEvents = gc->bgEvents;
+        break;
+    }
     case RINT_FEATURE:
         BuildFeatPeople(place, def);
         break;
@@ -856,6 +882,8 @@ static const struct MapHeader *BuildHouse(u32 place, u32 house)
     sInteriorHeader.music = Overworld_GetMapHeaderByGroupAndId(ROGUE_GROUP, place)->music;
     if (kind == RINT_LAB)
         sInteriorHeader.music = MUS_BIRCH_LAB;
+    else if (kind == RINT_GAME_CORNER)
+        sInteriorHeader.music = MUS_GAME_CORNER;
     return &sInteriorHeader;
 }
 
@@ -1219,6 +1247,7 @@ void Rogue_MarkFolkGiftGiven(void)
 
 extern const u8 Rogue_EventScript_MartClerk[];
 extern const u8 Rogue_EventScript_SpecialtyClerk[];
+extern const u8 Rogue_EventScript_PrizeClerk[];
 extern const u8 Rogue_EventScript_RuinsScholar[];
 extern const u8 Rogue_EventScript_RhymeChild[];
 extern const u8 Rogue_EventScript_ExplorerThanks[];
@@ -1317,6 +1346,8 @@ static const struct MapHeader *BuildRoomWithWarps(u32 mapNum, u32 place, u8 warp
         AddInteriorObject(sShopClerks[shop < ARRAY_COUNT(sShopClerks) ? shop : RSHOP_NONE], spot, 0,
                           Rogue_EventScript_SpecialtyClerk, MOVEMENT_TYPE_FACE_RIGHT);
     }
+    // (The Mart's prize counter of v1.1.7's first build is the Game
+    // Corner's prize desk now: RINT_GAME_CORNER.)
     // A ruin maniac resting by the PC, who tells the riddle of the ruins
     // nearby, as Center visitors in Emerald tell of Route 111's desert.
     if (warpKind == RWARP_PC && Rogue_RuinsScholarHere(place) && sInteriorEvents.objectEventCount < MAX_INTERIOR_OBJS)

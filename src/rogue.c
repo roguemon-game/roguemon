@@ -116,6 +116,7 @@ extern const u8 NewMauville_Inside_EventScript_GreenButton[];
 extern const u8 Rogue_EventScript_HouseSign[];
 extern const u8 Rogue_EventScript_LabSign[];
 extern const u8 Rogue_EventScript_GameCornerSign[];
+extern const u8 Rogue_EventScript_GameCornerOpenSign[];
 extern const u8 Rogue_EventScript_BattleTentSign[];
 extern const u8 Rogue_EventScript_MotelSign[];
 extern const u8 Rogue_EventScript_RestSign[];
@@ -609,6 +610,12 @@ EWRAM_DATA bool8 gRogueTestProfile = FALSE;
 // sTrainerParty), for the POKeDEX mix's numbers (dexmixtest.py). Always zero
 // in normal play.
 EWRAM_DATA u16 gRogueTestTrainer = 0;
+// Test hook: a team the tests set for the next trainer battle
+// (leaderbench.py --team): species, level and held item per slot, ended by
+// a zero species. Made when the trainer is next built, with IVs of 15 and
+// the level-up moves; a Mega Stone held brings the MEGA RING. Always zero
+// in normal play.
+IWRAM_DATA u16 gRogueTestParty[PARTY_SIZE][3] = {0}; // (EWRAM is full)
 
 static EWRAM_DATA struct Trainer sTrainer = {0};
 static EWRAM_DATA struct TrainerMon sTrainerParty[PARTY_SIZE] = {0};
@@ -2125,6 +2132,10 @@ static void BuildSignsAndGates(struct MapSlot *s)
             break;
         case RSIGN_GAME_CORNER:
             b->bgUnion.script = Rogue_EventScript_GameCornerSign;
+            break;
+        case RSIGN_GAME_CORNER_OPEN:
+            b->kind = BG_EVENT_PLAYER_FACING_ANY;
+            b->bgUnion.script = Rogue_EventScript_GameCornerOpenSign;
             break;
         case RSIGN_BATTLE_TENT:
             b->bgUnion.script = Rogue_EventScript_BattleTentSign;
@@ -4865,6 +4876,22 @@ static void SettleTrainerParty(u32 size)
     }
 }
 
+static void ApplyTestParty(void)
+{
+    u32 i;
+    ZeroPlayerPartyMons();
+    for (i = 0; i < PARTY_SIZE && gRogueTestParty[i][0]; i++)
+    {
+        u16 item = gRogueTestParty[i][2];
+        CreateRandomMonWithIVs(&gPlayerParty[i], gRogueTestParty[i][0], gRogueTestParty[i][1], 15);
+        SetMonData(&gPlayerParty[i], MON_DATA_HELD_ITEM, &item);
+        if (GetItemHoldEffect(item) == HOLD_EFFECT_MEGA_STONE && !CheckBagHasItem(ITEM_MEGA_RING, 1))
+            AddBagItem(ITEM_MEGA_RING, 1);
+    }
+    CalculatePlayerPartyCount();
+    memset(gRogueTestParty, 0, sizeof(gRogueTestParty));
+}
+
 const struct Trainer *Rogue_GetTrainer(u16 trainerId)
 {
     s32 slot = TrainerSlot(trainerId), master;
@@ -4873,6 +4900,8 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
     u16 key = trainerId;
 
     EnsureRegion();
+    if (gRogueTestParty[0][0])
+        ApplyTestParty();
     // RUN 0's Director is a second team once beaten (src/rogue_run0_trainers.h).
     if (run0 && slot == ROGUE_SLOT_CHAMPION && Rogue_Run0DirectorPhase() == 2)
         key |= 0x8000;
@@ -5057,6 +5086,7 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
             sTrainer.aiFlags = AI_FLAG_BASIC_TRAINER | AI_FLAG_SMART_MON_CHOICES;
         // The ace comes out last, as the gym guide's scouting says.
         sTrainer.aiFlags |= AI_FLAG_ACE_POKEMON;
+        Rogue_ApplyTestMega();
         if (gRogueTestLeader[0])
         {
             for (i = 0; i < size; i++)
@@ -7762,7 +7792,7 @@ void Rogue_GiveStarter(void)
     u16 species, item = ITEM_NONE, eggMove = MOVE_NONE;
     bool32 shiny, hidden = FALSE;
     struct Pokemon *mon = &gParties[B_TRAINER_PLAYER][0];
-    const u8 *items[14];
+    const u8 *items[16];
     u8 kinds[ROGUE_MAX_STARTER_ROWS];
     u8 *end;
 
@@ -7850,6 +7880,14 @@ void Rogue_GiveStarter(void)
     FlagSet(FLAG_ROGUE_EXP_SHARE);
     AddBagItem(ITEM_OLD_ROD, 1);
     items[nItems++] = COMPOUND_STRING("5 POKé BALLS");
+    // The CAP CANDY, in every ruleset from the first run, unless
+    // switched off in UNLOCKS.
+    if (Rogue_IsUnlockOn(UNLOCK_CAP_CANDY) || !Rogue_IsUnlockEarned(UNLOCK_CAP_CANDY))
+    {
+        if (!CheckBagHasItem(ITEM_CAP_CANDY, 1))
+            AddBagItem(ITEM_CAP_CANDY, 1);
+        items[nItems++] = COMPOUND_STRING("a CAP CANDY");
+    }
     if (unlocks & ROGUE_UNLOCK_KIT)
     {
         AddBagItem(ITEM_GREAT_BALL, 5);
@@ -8007,6 +8045,21 @@ u32 Rogue_GetLevelCap(void)
     if (e4 < ROGUE_NUM_E4)
         return sRegion.e4Level[e4];
     return sRegion.championLevel;
+}
+
+// The boss whose ace is the level cap: the next gym leader, then the ELITE
+// FOUR, then the CHAMPION (for the CAP CANDY's "It's ready for ...").
+void Rogue_BufferCapBossName(u8 *dest)
+{
+    u32 progress = VarGet(VAR_ROGUE_PROGRESS);
+    u32 badges = progress < ROGUE_PROGRESS_BADGE_1 ? 0 : progress - ROGUE_PROGRESS_BADGE_1 + 1;
+
+    if (badges < ROGUE_NUM_GYMS)
+        StringCopy(dest, Rogue_GetGymLeaderName(badges));
+    else if (VarGet(VAR_ROGUE_E4) < ROGUE_NUM_E4)
+        StringCopy(dest, COMPOUND_STRING("the ELITE FOUR"));
+    else
+        StringCopy(dest, COMPOUND_STRING("the CHAMPION"));
 }
 
 // Script special: the Hardcore rules and the first cap in STR_VAR_1.

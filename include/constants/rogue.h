@@ -2,7 +2,7 @@
 #define GUARD_CONSTANTS_ROGUE_H
 
 // Version of this build. tools/roguemon reads it for release names and covers.
-#define ROGUEMON_VERSION "1.1.6-beta"
+#define ROGUEMON_VERSION "1.1.7-beta"
 
 // Save data. These reuse vars and flags that vanilla Emerald leaves unused.
 #define VAR_ROGUE_SEED_LO     VAR_UNUSED_0x40F7
@@ -153,7 +153,8 @@
 // picks another); which one is on is the choice (Rogue_GetDexChoice).
 #define UNLOCK_NATIONAL_DEX    35 // the NATIONAL DEX may be chosen
 #define UNLOCK_GLOBAL_DEX      36 // the GLOBAL DEX may be chosen (no row of its own)
-#define ROGUE_NUM_UNLOCKS      37
+#define UNLOCK_CAP_CANDY       37 // a CAP CANDY in the kit (v1.1.7): earned from the first run, can be switched off
+#define ROGUE_NUM_UNLOCKS      38
 #define ROGUE_NUM_UNLOCK_ROWS  (ROGUE_NUM_UNLOCKS - 1) // rows in UNLOCKS: the two DEX unlocks share one
 
 // Runs started (losses count) that earn the starter rows of v0.13, and the
@@ -240,6 +241,13 @@
 #define FLAG_ROGUE_RIVAL_GIFT    FLAG_UNUSED_0x034 // the rival's gift was given
 #define FLAG_ROGUE_HARDCORE      FLAG_UNUSED_0x035 // this run plays by the Hardcore rules
 #define FLAG_ROGUE_BIRCH_NEWS    FLAG_UNUSED_0x036 // the professor told this run's news
+// The Mega Stones (v1.1.7, src/rogue_prize.c): the free stone given (the
+// 4th leader's or the prize counter's), and the stones bought, 0 to 3.
+#define FLAG_ROGUE_MEGA_GIFT     FLAG_UNUSED_0x02C
+#define FLAG_ROGUE_MEGA_BOUGHT_0 FLAG_UNUSED_0x02D
+#define FLAG_ROGUE_MEGA_BOUGHT_1 FLAG_UNUSED_0x02E
+// The Game Corner desk's three Pokemon prizes: each sold once a run.
+#define FLAG_ROGUE_DESK_MON_0    FLAG_UNUSED_0x048 // first of DESK_MAX_MONS (to 0x04A)
 #define FLAG_ROGUE_BOSS_0        FLAG_UNUSED_0x020 // first of 10 (to 0x029, ROGUE_MAX_DUNGEONS): a dungeon's boss beaten, caught or gone
 #define FLAG_ROGUE_HIDEOUT_CLEARED FLAG_UNUSED_0x04D // the villain admin in the hideout is beaten: the blockade is gone
 #define FLAG_ROGUE_WANDERER_0    FLAG_UNUSED_0x1DE // first of 4 (to 0x1E1): the meetings with the wanderer had this run

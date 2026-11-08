@@ -1966,8 +1966,11 @@ void CB2_NewGame(void)
     Rogue_LoadingNewGame();
     NewGameInitData();
     Rogue_LoadingHide();
-    // roguemon has no bedroom clock to set, so every run starts at 10AM.
-    RtcCalcLocalTimeOffset(0, 10, 0, 0);
+    // roguemon has no bedroom clock to set: a run starts on day 0 at the
+    // console's own time of day (at 10AM where the console has no clock).
+    RtcCalcLocalTimeOffset(0, 0, 0, 0);
+    if (!RtcFollowConsoleClock())
+        RtcCalcLocalTimeOffset(0, 10, 0, 0);
     ResetInitialPlayerAvatarState();
     // roguemon: the run starts in the professor's lab, facing him.
     if (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_ROGUE_HOUSE)
@@ -2176,6 +2179,9 @@ void CB2_ContinueSavedGame(void)
         LoadSaveblockObjEventScripts();
 
     UnfreezeObjectEvents();
+    // roguemon: a save from v1.1.6-beta or earlier ran on a clock that
+    // started at 10AM; it takes the console's time of day from here on.
+    RtcFollowConsoleClock();
     DoTimeBasedEvents();
     UpdateMiscOverworldStates();
     if (gMapHeader.mapLayoutId == LAYOUT_BATTLE_FRONTIER_BATTLE_PYRAMID_FLOOR)

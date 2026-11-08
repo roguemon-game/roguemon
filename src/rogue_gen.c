@@ -253,6 +253,7 @@ static const u16 sFenceRow[4] = { F_H, F_H, F_H, F_H };
 #define DOOR_DUNGEON 0xFD // the way into the town's tower or hideout (RWARP_DUNGEON)
 #define DOOR_SIGNATURE 0xFC // the town's signature landmark (RINT_SIGNATURE)
 #define DOOR_SIGLOT    0xFB // a signature lot laid like a building along a street (a market, a pasture): no door
+#define DOOR_GAME_CORNER 0xFA // a gym town's open Game Corner (RINT_GAME_CORNER), onto the house map
 // A town whose landmark has not fitted by then is built without it; until
 // then, it is tried past the 60 tries other maps get (and after, 30 more
 // without it). A town with an exit toward another tileset keeps the view
@@ -596,6 +597,54 @@ static char *AppendAscii(char *dest, const char *src)
 bool8 RogueGen_IsRun0(const struct RogueRegion *r)
 {
     return r->seed == ROGUE_RUN0_SEED;
+}
+
+// The region's one Game Corner, as in the real games: a gym town
+// reached mid-run, picked from the seed, always one whose theme has Emerald's
+// Game Corner building (Verdant, Island; Nov 5): best 2 to 4 badges in,
+// then any past the first gym. A region with none gets one
+// (GameCornerTheme). -1 in RUN 0 or with no gym town.
+static bool8 GameCornerFits(const struct RogueRegion *r, const struct RoguePlace *p, s32 pass)
+{
+    bool8 mid = p->badges >= 2 && p->badges <= 4;
+    if (p->kind != RPLACE_TOWN || p->type != RTOWN_GYM || (p->theme != RTHEME_VERDANT && p->theme != RTHEME_ISLAND))
+        return FALSE;
+    switch (pass)
+    {
+    case 0: return mid;
+    default: return p->badges >= 1;
+    }
+}
+
+s32 RogueGen_GameCornerTown(const struct RogueRegion *r)
+{
+    s32 pass, i, n, k;
+    if (RogueGen_IsRun0(r))
+        return -1;
+    for (pass = 0; pass < 2; pass++)
+    {
+        n = 0;
+        for (i = 0; i < r->nPlaces; i++)
+            if (GameCornerFits(r, &r->places[i], pass))
+                n++;
+        if (n == 0)
+            continue;
+        k = RogueRng_Hash(r->seed, 18400) % n;
+        for (i = 0; i < r->nPlaces; i++)
+            if (GameCornerFits(r, &r->places[i], pass) && k-- == 0)
+                return i;
+    }
+    return -1;
+}
+
+// The Coin Case and the prize desk open with the Game Corner itself: at
+// ROGUE_PRIZE_BADGES, or earlier when its town comes after the 1st gym.
+u8 RogueGen_PrizeBadges(const struct RogueRegion *r)
+{
+    s32 town = RogueGen_GameCornerTown(r);
+    if (town >= 0 && r->places[town].badges >= 1 && r->places[town].badges < ROGUE_PRIZE_BADGES)
+        return r->places[town].badges;
+    return ROGUE_PRIZE_BADGES;
 }
 
 void RogueGen_RegionName(u32 seed, char *out)
@@ -4736,6 +4785,7 @@ static u8 HouseSignOf(struct Gen *gen, int house)
     case RINT_NAME_RATER:   return RSIGN_NAME_RATER;
     case RINT_MOVE_DELETER: return RSIGN_MOVE_DELETER;
     case RINT_SIGNATURE:    return RSIGN_LANDMARK;
+    case RINT_GAME_CORNER:  return RSIGN_GAME_CORNER_OPEN;
     }
     switch (RogueGen_HomeRole(gen->r, gen->m->place, gen->m->interiors, gen->m->nHouses, house))
     {
@@ -4941,6 +4991,15 @@ static int AddBuildingEvents(struct Gen *gen, const struct Placed *p)
         AddWarp(gen, doorX, doorY, RWARP_DUNGEON);
         AddHouseSign(gen, p, RSIGN_DUNGEON);
         break;
+    case DOOR_GAME_CORNER:
+        // Mauville's Game Corner room (RINT_GAME_CORNER in rogue_town.c).
+        if (m->nHouses < ROGUE_MAX_HOUSES)
+        {
+            AddWarp(gen, doorX, doorY, ROGUE_HOUSE_WARP(m->nHouses));
+            house = m->nHouses;
+            m->interiors[m->nHouses++] = RINT_GAME_CORNER;
+        }
+        break;
     default:
         AddSign(gen, doorX, doorY, LandmarkSign(b));
         break;
@@ -5005,6 +5064,9 @@ static void AddHouseSigns(struct Gen *gen, const struct Placed *placed, const s8
     {
         if (HouseSignOf(gen, k) == RSIGN_LANDMARK)
             PutHouseSign(gen, &placed[houseOf[k]], k, RSIGN_LANDMARK);
+        // The open Game Corner always says so.
+        if (HouseSignOf(gen, k) == RSIGN_GAME_CORNER_OPEN)
+            PutHouseSign(gen, &placed[houseOf[k]], k, RSIGN_GAME_CORNER_OPEN);
     }
     for (i = 0; i < (int)(sizeof(sOrder) / sizeof(sOrder[0])); i++)
     {
@@ -6669,6 +6731,25 @@ static bool8 HostsHideout(const struct RogueRegion *r, const struct RoguePlace *
     return di >= 0 && r->dungeons[di].kind == RDUN_HIDEOUT;
 }
 
+// The building the region's open Game Corner is: the theme's own Game
+// Corner (Verdant, Island) unless it is the way into the dungeon, else the
+// theme's landmark building, else (NULL) one of its houses, each with a
+// Game Corner sign.
+static const struct Building *ThemeGameCorner(const struct TownTheme *th, const struct Building *dunB)
+{
+    int i;
+    for (i = 0; i < th->nBig; i++)
+        if ((th->big[i].stamp == sThemeVerdant_GameCorner || th->big[i].stamp == sThemeIsland_GameCorner)
+         && &th->big[i] != dunB)
+            return &th->big[i];
+    // Other themes: their landmark building (a school, a motel, a tent),
+    // so the Game Corner still stands out from the homes.
+    for (i = 0; i < th->nBig; i++)
+        if (&th->big[i] != dunB)
+            return &th->big[i];
+    return NULL;
+}
+
 // The building a town's dungeon is entered by: the theme's tall building or
 // warehouse, the tower, or the shut Game Corner. NULL for one of the town's
 // houses (also when the big building keeps failing to fit).
@@ -6792,6 +6873,8 @@ static bool8 GenTown(struct Gen *gen)
     int entryX = -1, entryY = -1, entryTarget = 0xFF;
     // Fortree's woods: no streets (PlaceWoodsBuildings).
     bool8 woodsLayout = FALSE;
+    bool8 gameCorner = FALSE;
+    const struct Building *gcB = NULL;
     u8 exitX[6], exitY[6];
     int nExits = 0, hx = 0, hy = 0;
     // A hamlet is a small, odd place at the end of a side path: a lone
@@ -6840,6 +6923,21 @@ static bool8 GenTown(struct Gen *gen)
     }
     if (entrance != RENTRY_NONE && entrance != RENTRY_MESA)
         dunB = DungeonBuilding(gen, th, entrance);
+    // The region's one open Game Corner (RogueGen_GameCornerTown).
+    gameCorner = city && (s32)gen->m->place == RogueGen_GameCornerTown(r);
+    // Always Emerald's building (Nov 5): not the way into a dungeon
+    // too.
+    if (gameCorner && entrance == RENTRY_GAME_CORNER)
+    {
+        entrance = RENTRY_HOUSE;
+        dunB = DungeonBuilding(gen, th, entrance);
+    }
+    if (gameCorner)
+        gcB = ThemeGameCorner(th, dunB);
+#ifdef ROGUE_HOST
+    if (gameCorner && getenv("GCSTAMP") && gen->attempt == 0)
+        fprintf(stderr, "GCSTAMP place %d theme %d stamp %d\n", gen->m->place, p->theme, gcB != NULL);
+#endif
     // Beach towns come in two kinds. A gym town is a harbor city: it stands
     // on grass like Slateport and Lilycove, with sand streets and, on the
     // sea, a beach with groves of island trees on it. Villages and hamlets
@@ -7279,6 +7377,13 @@ static bool8 GenTown(struct Gen *gen)
         doors[nList] = RWARP_GYM;
         list[nList++] = (th->gym && !harborCity) ? th->gym : &sGym;
     }
+    // The region's Game Corner, right after the gym so it gets a house
+    // slot.
+    if (gameCorner)
+    {
+        doors[nList] = DOOR_GAME_CORNER;
+        list[nList++] = gcB ? gcB : &th->houses[RAND(th->nHouses)];
+    }
     if (p->type == RTOWN_START)
     {
         doors[nList] = DOOR_LAB;
@@ -7327,8 +7432,11 @@ static bool8 GenTown(struct Gen *gen)
     {
         doors[nList] = DOOR_LOCKED;
         list[nList] = &th->big[RAND(th->nBig)];
-        // Not a second, shut Game Corner beside the one that is the way in.
-        if (list[nList] != dunB)
+        // Not a second, shut Game Corner beside the one that is the way in
+        // or the open one.
+        if (list[nList] == gcB)
+            list[nList] = &th->big[0];
+        if (list[nList] != dunB && list[nList] != gcB)
             nList++;
         else if (th->nBig > 1)
             list[nList++] = &th->big[0];
@@ -7364,8 +7472,16 @@ static bool8 GenTown(struct Gen *gen)
                 SetCell(gen, x, y, C_OPEN);
         if (PlaceBuildingAt(gen, gc, bx, plazaY + 1, &placed[nPlaced]))
         {
-            placed[nPlaced++].door = gc == dunB ? DOOR_DUNGEON : DOOR_LOCKED;
+            placed[nPlaced++].door = gc == dunB ? DOOR_DUNGEON : (gc == gcB ? DOOR_GAME_CORNER : DOOR_LOCKED);
             centreDone = TRUE;
+            // The open Game Corner stands in the square: its place in the
+            // list becomes a house.
+            for (i = 0; i < nList; i++)
+                if (list[i] == gc && doors[i] == DOOR_GAME_CORNER)
+                {
+                    doors[i] = RWARP_HOUSE;
+                    list[i] = &th->houses[RAND(th->nHouses)];
+                }
             // The town's other landmark is the bike shop.
             for (i = 0; i < nList; i++)
                 if (list[i] == gc && doors[i] != DOOR_DUNGEON)
@@ -19617,6 +19733,45 @@ static void AssignThemes(struct RogueRegion *r, u32 *rng, const u8 *from, const 
     }
 }
 
+// The region's Game Corner stands in Emerald's own building, which only the
+// Verdant and Island themes have: a region whose gym towns have
+// neither past the first gym turns the gym town nearest the 3rd gym
+// Verdant (Island if the first gym's town is Verdant). From the seed's
+// hash, not the plan's rng, so every other region stays as it was.
+static void GameCornerTheme(struct RogueRegion *r)
+{
+    int i, best = -1, bestD = 99;
+    if (RogueGen_IsRun0(r))
+        return;
+    for (i = 0; i < r->nTowns; i++)
+    {
+        const struct RoguePlace *p = &r->places[r->towns[i]];
+        if (p->type == RTOWN_GYM && p->gym != 0 && (p->theme == RTHEME_VERDANT || p->theme == RTHEME_ISLAND))
+            return;
+    }
+    for (i = 0; i < r->nTowns; i++)
+    {
+        const struct RoguePlace *p = &r->places[r->towns[i]];
+        int d;
+        if (p->type != RTOWN_GYM || p->gym == 0xFF || p->gym == 0 || p->theme == RTHEME_RAFT || p->theme == RTHEME_CRATER)
+            continue;
+        d = p->gym > 2 ? p->gym - 2 : 2 - p->gym;
+        if (d < bestD || (d == bestD && (RogueRng_Hash(r->seed, 18450 + i) & 1)))
+        {
+            best = r->towns[i];
+            bestD = d;
+        }
+    }
+    if (best < 0)
+        return;
+    // Gym towns keep a theme each: Island if the first gym's town is Verdant.
+    r->places[best].theme = RTHEME_VERDANT;
+    for (i = 0; i < r->nTowns; i++)
+        if (r->towns[i] != best && r->places[r->towns[i]].type == RTOWN_GYM
+         && r->places[r->towns[i]].theme == RTHEME_VERDANT)
+            r->places[best].theme = RTHEME_ISLAND;
+}
+
 static void FactsForget(void); // src/rogue_gen_facts.h
 
 static void Run0Plan(struct RogueRegion *r);
@@ -19774,6 +19929,7 @@ void RogueGen_BuildRegion(struct RogueRegion *r, u32 seed)
         r->places[i].tier = TierOfLevel(r->places[i].level);
 
     AssignThemes(r, &rng, from, spinePlace);
+    GameCornerTheme(r);
     for (i = 0; i < r->nTowns; i++)
     {
         struct RoguePlace *p = &r->places[r->towns[i]];

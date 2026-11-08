@@ -270,6 +270,7 @@ enum RogueInterior
     RINT_REST,         // a rest house on a route, where the team can heal
     RINT_SIGNATURE,    // a town's signature landmark (src/rogue_gen_signatures.h): its vanilla interior
     RINT_FEATURE,      // a route feature's house (src/rogue_gen_features.h): the Day Care, the Seashore House...
+    RINT_GAME_CORNER,  // a gym town's Game Corner: Mauville's room, slots, roulette and the prize desk
     RINT_COUNT,
 };
 
@@ -323,6 +324,7 @@ enum RogueSignKind
     RSIGN_TABLET,  // one of the three tablets of a ruins vault's riddle door (left to right)
     RSIGN_LANDMARK, // beside a town's signature landmark, naming it
     RSIGN_FEATURE,  // beside a route feature, naming it (src/rogue_gen_features.h)
+    RSIGN_GAME_CORNER_OPEN, // beside a gym town's open Game Corner
     // RUN 0 (include/rogue_run0_region.h): a PROMPT LOG sign post, RSIGN_RUN0 + the
     // prompt (RUN0_HOOK_PROMPT_0 + k), and a real Emerald sign moved onto a
     // generated route, RSIGN_RUN0_REAL + RUN0_SIGN_*.
@@ -1500,6 +1502,18 @@ u16 RogueGen_GymTM(const struct RogueRegion *r, u8 gym, u8 type);
 u8 RogueGen_SpecialtyShop(const struct RogueRegion *r, u8 place);
 // flags: ROGUE_ITEMS_HARDCORE turns the battle counter into a berry stall.
 u32 RogueGen_SpecialtyStock(const struct RogueRegion *r, u8 place, u8 badges, u16 *out, u32 max, u8 flags);
+// The Game Corner's prize counter in every gym town's Mart (src/rogue_prize.c):
+// 2 or 3 TMs (one more with extraTM) and 2 held items, from the seed, the
+// town and the badges; none before ROGUE_PRIZE_BADGES.
+#define ROGUE_PRIZE_BADGES 2
+// The badges that open the Coin Case and prize desk in this region:
+// ROGUE_PRIZE_BADGES, or 1 when its Game Corner town is reached with 1.
+u8 RogueGen_PrizeBadges(const struct RogueRegion *r);
+// Fair runs have about 5,000 to 10,000 by the 3rd and 4th gym towns, so
+// the counter leaves out held items dearer than this (Leftovers, Eviolite...).
+#define ROGUE_PRIZE_MAX_HELD_PRICE 15000
+u32 RogueGen_PrizeStock(const struct RogueRegion *r, u8 place, u8 badges, u16 *out, u32 max, bool8 extraTM,
+                        u32 (*price)(u16));
 
 // Helpers for the plan.
 const struct RogueLink *RogueGen_FindLink(const struct RoguePlace *p, u8 target);
@@ -1594,6 +1608,7 @@ bool8 RogueGen_VolcanoCell(const struct RogueRegion *r, s8 *gx, s8 *gy);
 #define ROGUE_RUN0_SEED       ROGUE_REGION_COUNT
 #define ROGUE_RUN0_NAME       "RUN 0"
 bool8 RogueGen_IsRun0(const struct RogueRegion *r);
+s32 RogueGen_GameCornerTown(const struct RogueRegion *r); // the region's one Game Corner town, or -1
 
 // Writes the ASCII name of a seed into out (ROGUE_REGION_NAME_LEN + 1 long).
 void RogueGen_RegionName(u32 seed, char *out);

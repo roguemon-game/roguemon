@@ -1,6 +1,6 @@
 # Roguémon Player Guide
 
-Version 1.1.6-beta
+Version 1.1.7-beta
 
 ## What Roguémon is
 
@@ -188,6 +188,7 @@ There are no level caps in a normal run.
 - **Optional dungeons** follow the badges you hold when you enter, so they stay a fair fight whenever you visit.
 - Wild Pokémon sit a few levels below the trainers around them, and further below late in the run.
 - **Your whole party shares EXP** from every battle, so your bench keeps up.
+- **The CAP CANDY.** Every starting kit has one, in Key Items. Use it on a Pokémon outside battle and it levels up to the next gym leader's ace level in one go, learning moves and evolving as with Rare Candies. It never goes further: at or above that level it says "It's ready for" the leader. After the eighth badge it follows the Elite Four and then the Champion. It is kept after use. Switch it off under UNLOCKS if you'd rather grind.
 
 Battles use pokeemerald-expansion's modern rules and moves, including the Fairy type.
 
@@ -208,6 +209,8 @@ Most things work as in Emerald. These are the differences that may surprise you:
 - **Trade evolutions use the item from the bag.** There is no one to trade with, so use a Metal Coat, Dragon Scale, Up-Grade or Linking Cord from the bag to evolve.
 - **Marts grow with your badges.** From the fifth badge they sell Timer Balls and the plain evolution stones (Fire, Water, Thunder, Leaf, Moon and Sun). From the seventh badge they sell Dusk and Quick Balls. No Mart sells Ethers or Elixirs, but you can find some late in the run.
 - **Specialty counters.** Some gym cities have a second clerk with a specialty: X items, vitamins, evolution stones, special balls, TMs, held items, herbs or type items.
+- **The Game Corner.** Each region has one Game Corner, in a gym city you reach mid-run; its town sign says "Home of the GAME CORNER!", and the gym leader whose badge opens the way tells you where it is and gives you a COIN CASE. Inside are Emerald's own slot machines and roulette tables, and the clerk sells coins for money (50 for 1,000). The prize desk trades coins for two or three TMs and two held items (100 to 400 coins) and three of the region's Pokémon, a little under the level cap (300 coins, 600 from the fourth badge, 1,000 from the seventh; each sold once a run). The prizes change each run and with each badge.
+- **Mega Evolution.** The fifth gym leader gives you the MEGA RING and a Mega Stone for a Pokémon in your team that can Mega Evolve (its whole evolution line counts; if several fit, you pick). From then on the Game Corner's prize desk also offers Mega Stones (600 coins each) for Pokémon you have, at most three stones in a run.
 - **Gym leaders** give a TM of their type with the badge.
 - **Held items are rare.** A run hands out at most one of each held item. Rare Candies start after the second badge, and Full Restores after the seventh.
 - **Hidden items** lie on every route, at dead ends, on beaches and in caves. Use the DOWSING MACHINE your rival gives you.
@@ -231,6 +234,7 @@ Choose UNLOCKS on the title menu. It has three pages: UNLOCKS, FEATS and LEGENDS
 
 | Unlock | How to earn it | What it does |
 | --- | --- | --- |
+| CAP CANDY | Yours from the first run (can be switched off) | A CAP CANDY in your starting kit: levels a Pokémon up to the next leader's ace |
 | PARTNER STARTERS | Win a gym badge | A partner row in the starter menu (like Pikachu, Riolu or Zorua) |
 | EEVEE | Start a second run | An Eevee row in the starter menu |
 | BABY POKéMON | Start a second run | A baby Pokémon row (like Pichu, Azurill or Munchlax) |

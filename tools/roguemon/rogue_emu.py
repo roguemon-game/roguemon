@@ -665,7 +665,7 @@ class GameData:
         return mons
 
     def bag_pocket(self, which):
-        """[(item, quantity)] in a bag pocket ('items', 'balls' or 'all')."""
+        """[(item, quantity)] in a bag pocket ('items', 'balls', 'berries', 'key' or 'all')."""
         self.load_tables()
         o = self.off
         sb1 = self.peek(32, self.sym['gSaveBlock1Ptr'])
@@ -675,6 +675,8 @@ class GameData:
             start, end = o['bagBalls'], o['bagBallsEnd']
         elif which == 'berries':
             start, end = o['bagBerries'], o['bagSize']
+        elif which == 'key':
+            start, end = o['bagKeyItems'], o['bagKeyItems'] + 4 * 30
         elif which == 'all':
             # Every pocket: items, key items, balls, TMs and berries in a row.
             start, end = o['bagItems'], o['bagItems'] + 4 * (30 + 30 + 16 + 64 + 46)

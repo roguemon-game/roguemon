@@ -345,6 +345,30 @@ void RtcInitLocalTimeOffset(s32 hour, s32 minute)
     RtcCalcLocalTimeOffset(0, hour, minute, 0);
 }
 
+// roguemon: the game clock shows the console's own time of day, so night in
+// the game is night for the player. The run keeps its day count, moved on a
+// day where the hour would go back, so day-based events never go backwards.
+// A broken clock is left as it is (the tint is off without one): FALSE.
+bool32 RtcFollowConsoleClock(void)
+{
+    struct Time *offset = &gSaveBlock2Ptr->localTimeOffset;
+    s32 days;
+
+    if (OW_USE_FAKE_RTC || (RtcGetErrorStatus() & (RTC_INIT_ERROR | RTC_ERR_FLAG_MASK)))
+        return FALSE;
+    RtcCalcLocalTime();
+    days = gLocalTime.days;
+    if (ConvertBcdToBinary(sRtc.hour) * 3600 + ConvertBcdToBinary(sRtc.minute) * 60 + ConvertBcdToBinary(sRtc.second)
+      < gLocalTime.hours * 3600 + gLocalTime.minutes * 60 + gLocalTime.seconds)
+        days++;
+    offset->days = RtcGetDayCount(&sRtc) - days;
+    offset->hours = 0;
+    offset->minutes = 0;
+    offset->seconds = 0;
+    RtcCalcLocalTime();
+    return TRUE;
+}
+
 void RtcCalcLocalTimeOffset(s32 days, s32 hours, s32 minutes, s32 seconds)
 {
     gLocalTime.days = days;
