@@ -1163,7 +1163,6 @@ static const struct RogueRoomSpot sRoomSpots_GraniteCave_StevensRoom[] = {
     { 7, 8, ROOM_SPOT_BOSS, 0x02, 4 },
     { 7, 5, ROOM_SPOT_LEADER, 0x00, 3 },
     { 5, 3, ROOM_SPOT_CARVING, 0x00, 0 },
-    { 7, 4, ROOM_SPOT_GATE, 0x00, 0 },
     { 6, 7, ROOM_SPOT_PRIZE, 0x02, 0 },
 };
 
@@ -2196,7 +2195,7 @@ static const struct RogueRoom sRogueRooms[] = {
     { sRoomBlocks_SkyPillar_Top, sRoomWarps_SkyPillar_Top, sRoomSpots_SkyPillar_Top, 27, 24, 1, 5, ROOM_STYLE_PILLAR, ROOM_USE_LAST },
     { sRoomBlocks_CaveOfOrigin_B1F, sRoomWarps_CaveOfOrigin_B1F, sRoomSpots_CaveOfOrigin_B1F, 19, 19, 1, 4, ROOM_STYLE_ORIGIN, ROOM_USE_LAST },
     { sRoomBlocks_MeteorFalls_StevensCave, sRoomWarps_MeteorFalls_StevensCave, sRoomSpots_MeteorFalls_StevensCave, 30, 32, 1, 5, ROOM_STYLE_HOLLOW, ROOM_USE_LAST },
-    { sRoomBlocks_GraniteCave_StevensRoom, sRoomWarps_GraniteCave_StevensRoom, sRoomSpots_GraniteCave_StevensRoom, 15, 14, 1, 5, ROOM_STYLE_DEN, ROOM_USE_LAST },
+    { sRoomBlocks_GraniteCave_StevensRoom, sRoomWarps_GraniteCave_StevensRoom, sRoomSpots_GraniteCave_StevensRoom, 15, 14, 1, 4, ROOM_STYLE_DEN, ROOM_USE_LAST },
     { sRoomBlocks_SouthernIsland_Interior, sRoomWarps_SouthernIsland_Interior, sRoomSpots_SouthernIsland_Interior, 27, 24, 2, 5, ROOM_STYLE_ISLE, ROOM_USE_LAST },
     { sRoomBlocks_FarawayIsland_Interior, sRoomWarps_FarawayIsland_Interior, sRoomSpots_FarawayIsland_Interior, 29, 26, 2, 6, ROOM_STYLE_GLADE, ROOM_USE_LAST },
     { sRoomBlocks_MirageTower_1F, sRoomWarps_MirageTower_1F, sRoomSpots_MirageTower_1F, 21, 17, 3, 16, ROOM_STYLE_SANDS, ROOM_USE_MIDDLE },

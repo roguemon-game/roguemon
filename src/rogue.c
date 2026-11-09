@@ -23,6 +23,7 @@
 #include "event_data.h"
 #include "event_scripts.h"
 #include "field_screen_effect.h"
+#include "field_camera.h"
 #include "fieldmap.h"
 #include "field_player_avatar.h"
 #include "item.h"
@@ -3749,6 +3750,7 @@ static void FillLateEdges(void)
 {
     const struct MapConnection *c;
     u32 i;
+    bool32 filled = FALSE;
     if (gSaveBlock1Ptr->location.mapNum != sCurrentPlace || gMapHeader.connections == NULL)
     {
         sLateEdges = 0;
@@ -3762,7 +3764,13 @@ static void FillLateEdges(void)
         EnsurePlace(c->mapNum);
         sLateEdges &= ~(1 << i);
         FillMapConnection(i);
+        filled = TRUE;
     }
+    // The edge's blocks may already be on screen, drawn from what the buffer
+    // held before (the border, or another neighbour in a corner): draw them
+    // again.
+    if (filled)
+        DrawWholeMapView();
 }
 
 u8 *Rogue_CopyAscii(u8 *dest, const u8 *src)

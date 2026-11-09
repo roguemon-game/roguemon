@@ -29,7 +29,7 @@ static void RedrawMapSliceEast(struct FieldCameraOffset *, const struct MapLayou
 static void RedrawMapSliceWest(struct FieldCameraOffset *, const struct MapLayout *);
 static s32 MapPosToBgTilemapOffset(struct FieldCameraOffset *, s32, s32);
 static void DrawWholeMapViewInternal(int, int, const struct MapLayout *);
-static void RedrawNewMapInView(const struct Tileset *, const struct Tileset *);
+static void RedrawNewMapInView(void);
 static void DrawMetatileAt(const struct MapLayout *, u16, int, int);
 static void DrawMetatile(s32, const u16 *, u16);
 static void CameraPanningCB_PanAhead(void);
@@ -121,45 +121,17 @@ static void DrawWholeMapViewInternal(int x, int y, const struct MapLayout *mapLa
     }
 }
 
-// Roguémon: crossing a map edge swaps the secondary tileset, but the part of
-// the new map already in the BG tilemap (up to eight blocks in, drawn while
-// the old map's tileset was loaded) keeps the old tileset's pieces for those
-// metatile ids. Redraw the new map's cells in the tilemap whose tileset
-// changed; leave the old map's cells as they were drawn, since the new
-// tileset can't draw them.
-static void RedrawNewMapInView(const struct Tileset *oldPrimary, const struct Tileset *oldSecondary)
+// Roguémon: crossing a map edge redraws the whole view from the new map.
+// The part of the new map already in the BG tilemap was drawn from the old
+// map's buffer, which can hold something else there: the old map's tileset
+// (whose pieces differ for the same metatile ids), or, past a corner of the
+// old map, another neighbour. A town's buffer corner below and to the right
+// holds whichever of its south and east neighbours was copied in last: on
+// seed 10035 route 18's tree edge stood across route 4's road in the picture
+// though not in the map (seamdrawtest.py).
+static void RedrawNewMapInView(void)
 {
-    const struct MapLayout *mapLayout = gMapHeader.mapLayout;
-    s32 x0 = gSaveBlock1Ptr->pos.x, y0 = gSaveBlock1Ptr->pos.y;
-    s32 i, j;
-    // Only metatiles from a tileset that changed need drawing again (most
-    // seams join maps of one tileset): keep the crossing within its frame.
-    bool32 primaryChanged = mapLayout->primaryTileset != oldPrimary;
-    u32 numPrimary = GetNumMetatilesInPrimary(mapLayout);
-
-    if (!primaryChanged && mapLayout->secondaryTileset == oldSecondary)
-        return;
-
-    for (i = 0; i < 16; i++)
-    {
-        s32 y = y0 + i;
-        u32 row;
-
-        if (y < MAP_OFFSET || y >= MAP_OFFSET + mapLayout->height)
-            continue;
-        row = ((sFieldCameraOffset.yTileOffset + i * 2) & 31) * 32;
-        for (j = 0; j < 16; j++)
-        {
-            s32 x = x0 + j;
-
-            if (x < MAP_OFFSET || x >= MAP_OFFSET + mapLayout->width)
-                continue;
-            if (!primaryChanged && MapGridGetMetatileIdAt(x, y) < numPrimary)
-                continue;
-            DrawMetatileAt(mapLayout, row + ((sFieldCameraOffset.xTileOffset + j * 2) & 31), x, y);
-        }
-    }
-    sFieldCameraOffset.copyBGToVRAM = TRUE;
+    DrawWholeMapView();
 }
 
 static void RedrawMapSlicesForCameraUpdate(struct FieldCameraOffset *cameraOffset, int x, int y)
@@ -517,8 +489,6 @@ void CameraUpdate(void)
 
     if (deltaX != 0 || deltaY != 0)
     {
-        const struct Tileset *oldPrimary = gMapHeader.mapLayout->primaryTileset;
-        const struct Tileset *oldSecondary = gMapHeader.mapLayout->secondaryTileset;
         bool8 mapChanged = CameraMove(deltaX, deltaY);
         UpdateObjectEventsForCameraUpdate(deltaX, deltaY);
         RotatingGatePuzzleCameraUpdate(deltaX, deltaY);
@@ -526,7 +496,7 @@ void CameraUpdate(void)
         AddCameraTileOffset(&sFieldCameraOffset, deltaX * 2, deltaY * 2);
         RedrawMapSlicesForCameraUpdate(&sFieldCameraOffset, deltaX * 2, deltaY * 2);
         if (mapChanged)
-            RedrawNewMapInView(oldPrimary, oldSecondary);
+            RedrawNewMapInView();
         TryDespawnOWEsCrossingMapConnection();
     }
 

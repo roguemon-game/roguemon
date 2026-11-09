@@ -1095,16 +1095,28 @@ def carving_spot(room, warps, entry, taken):
 def gate_spot(room, warps, entry, boss):
     """Where what keeps a lair shut stands (ROBJ_SEAL: a cracked rock, a
     boulder, a keeper): a block every walk from the way in to the legend
-    crosses, nearest the legend, off the warps. None if the room is open
-    all round (the seal then stands where the legend appears)."""
+    crosses, nearest the legend, off the warps, and never the only step off
+    a way in (Granite Cave's ladder in Steven's room: one arrives on it and
+    can't go back without stepping off). None if the room is open all round
+    (the seal then stands where the legend appears)."""
     bx, by = boss[0], boss[1]
     goal = {(bx + dx, by + dy) for dx, dy in DELTA}
     seen = walk(room, [entry], warps, {(bx, by)})
     warp_cells = {(x, y) for x, y, _, _ in warps}
     dist = distances(room, entry, warps)
+
+    def free(x, y):
+        return room.inside(x, y) and not room.at(x, y) & 0x0C00
+
+    def only_step_off(c):
+        for x, y in [w[:2] for w in warps if w[2] == 'BACK']:
+            steps = [(x + dx, y + dy) for dx, dy in DELTA if free(x + dx, y + dy)]
+            if c in steps and len(steps) == 1:
+                return True
+        return False
     best = None
     for c in sorted(seen):
-        if c in warp_cells or c in goal or room.at(*c) & 0x0C00 or c not in dist:
+        if c in warp_cells or c in goal or room.at(*c) & 0x0C00 or c not in dist or only_step_off(c):
             continue
         if goal & walk(room, [entry], warps, {(bx, by), c}):
             continue
