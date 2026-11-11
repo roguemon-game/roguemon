@@ -484,7 +484,7 @@ static void BattleScene_DrawChoices(u8 selection)
 static u8 BattleStyle_ProcessInput(u8 selection)
 {
     // roguemon: the Hardcore rules play SET style.
-    if (Rogue_IsHardcore())
+    if (Rogue_RuleOn(RULE_SET_STYLE))
         return OPTIONS_BATTLE_STYLE_SET;
     if (JOY_NEW(DPAD_LEFT | DPAD_RIGHT))
     {

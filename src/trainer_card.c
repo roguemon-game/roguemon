@@ -668,7 +668,9 @@ u32 CountPlayerTrainerStars(void)
     // roguemon: stars for feats, as Emerald's are for its postgame: becoming
     // Champion, doing it under the Hardcore rules, catching ten legends,
     // and winning with each type's starter.
-    if (VarGet(VAR_ROGUE_META_WINS) != 0)
+    // (A NUZLOCKE or HARDCORE win: casual mode's EASY and ONE LIFE wins
+    // don't earn the CHAMPION feat.)
+    if (Rogue_IsFeatDone(FEAT_CHAMPION))
         stars++;
     if (Rogue_GetRecord()->hardcoreWins != 0)
         stars++;

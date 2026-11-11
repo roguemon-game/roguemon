@@ -2752,7 +2752,7 @@ static void ClearSetBScriptingStruct(void)
     gBattleScripting.windowsType = temp;
     gBattleScripting.battleStyle = gSaveBlock2Ptr->optionsBattleStyle;
     // roguemon: Hardcore rules play SET style.
-    if (Rogue_IsHardcore())
+    if (Rogue_RuleOn(RULE_SET_STYLE))
         gBattleScripting.battleStyle = OPTIONS_BATTLE_STYLE_SET;
     #if TESTING
     gBattleScripting.battleStyle = OPTIONS_BATTLE_STYLE_SET;

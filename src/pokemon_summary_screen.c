@@ -35,6 +35,7 @@
 #include "pokemon_summary_screen.h"
 #include "pokerus.h"
 #include "region_map.h"
+#include "regions.h"
 #include "scanline_effect.h"
 #include "sound.h"
 #include "sprite.h"
@@ -49,6 +50,7 @@
 #include "constants/moves.h"
 #include "constants/party_menu.h"
 #include "constants/region_map_sections.h"
+#include "constants/rtc.h"
 #include "constants/rgb.h"
 #include "constants/songs.h"
 
@@ -257,7 +259,6 @@ static void CreateTextPrinterTask(u8);
 static void PrintInfoPageText(void);
 static void Task_PrintInfoPage(u8);
 static void PrintMonOTName(void);
-static void PrintMonOTID(void);
 static void PrintMonAbilityName(void);
 static void PrintMonAbilityDescription(void);
 static void BufferMonTrainerMemo(void);
@@ -268,7 +269,6 @@ static bool8 DoesMonOTMatchOwner(void);
 static bool8 DidMonComeFromGBAGames(void);
 static bool8 IsInGamePartnerMon(void);
 static void PrintEggOTName(void);
-static void PrintEggOTID(void);
 static void PrintEggState(void);
 static void PrintEggMemo(void);
 static void Task_PrintSkillsPage(u8);
@@ -330,6 +330,8 @@ void ExtractMonSkillEvData(struct Pokemon *mon, struct PokeSummary *sum);
 static void PrintTextOnWindow(u8 windowId, const u8 *string, u8 x, u8 y, u8 lineSpacing, u8 colorId);
 static void PrintTextOnWindowWithFont(u8 windowId, const u8 *string, u8 x, u8 y, u8 lineSpacing, u8 colorId, u32 fontId);
 static const u8 *GetLetterGrade(u32 stat);
+static const u8 *GetEvLetterGrade(u32 stat);
+static void BufferEvolvesText(u8 *dst);
 static u8 AddWindowFromTemplateList(const struct WindowTemplate *template, u8 templateId);
 static u8 IncrementSkillsStatsMode(u8 mode);
 static void ClearStatLabel(u32 length, u32 statsCoordX, u32 statsCoordY);
@@ -614,11 +616,13 @@ static const struct WindowTemplate sSummaryTemplate[] =
 };
 static const struct WindowTemplate sPageInfoTemplate[] =
 {
+    // Roguémon: the OT/ID row is the EVOLVES row, as wide as both
+    // (tiles 467-502); the ID window is no longer used.
     [PSS_DATA_WINDOW_INFO_ORIGINAL_TRAINER] = {
         .bg = 0,
         .tilemapLeft = 11,
         .tilemapTop = 4,
-        .width = 11,
+        .width = 18,
         .height = 2,
         .paletteNum = 6,
         .baseBlock = 467,
@@ -3453,14 +3457,12 @@ static void PrintInfoPageText(void)
     if (sMonSummaryScreen->summary.isEgg)
     {
         PrintEggOTName();
-        PrintEggOTID();
         PrintEggState();
         PrintEggMemo();
     }
     else
     {
         PrintMonOTName();
-        PrintMonOTID();
         PrintMonAbilityName();
         PrintMonAbilityDescription();
         BufferMonTrainerMemo();
@@ -3477,7 +3479,6 @@ static void Task_PrintInfoPage(u8 taskId)
         PrintMonOTName();
         break;
     case 2:
-        PrintMonOTID();
         break;
     case 3:
         PrintMonAbilityName();
@@ -3498,30 +3499,180 @@ static void Task_PrintInfoPage(u8 taskId)
     data[0]++;
 }
 
-static void PrintMonOTName(void)
+static const u8 sText_EvolvesSlash[] = _("EVOLVES/");
+static const u8 sText_EvoLv[] = _("Lv. ");
+static const u8 sText_EvoLevelUp[] = _("Level up");
+static const u8 sText_EvoFriendship[] = _("Friendship");
+static const u8 sText_EvoHolding[] = _(" holding ");
+static const u8 sText_EvoHold[] = _("Hold ");
+static const u8 sText_EvoKnowing[] = _(" knowing ");
+static const u8 sText_EvoKnows[] = _("Knows ");
+static const u8 sText_EvoDay[] = _(", day");
+static const u8 sText_EvoNight[] = _(", night");
+static const u8 sText_EvoMale[] = _(", male");
+static const u8 sText_EvoFemale[] = _(", female");
+static const u8 sText_EvoSpecial[] = _(", special");
+static const u8 sText_EvoTrade[] = _("Trade");
+static const u8 sText_EvoInBattle[] = _(" in battle");
+static const u8 sText_EvoOther[] = _("Special");
+static const u8 sText_EvoNone[] = _("Does not evolve");
+static const u8 sText_EvoMore[] = _(" +{STR_VAR_1} more");
+
+// Roguémon: how this species evolves, from its evolution table:
+// 'Lv. 36', 'Water Stone', 'Trade holding Metal Coat', 'Friendship, day'.
+// Conditions it has no short words for read ', special'. Several ways
+// show the first and '+N more' (N other species).
+static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
 {
-    int x, windowId;
-    if (InBattleFactory() != TRUE && InSlateportBattleTent() != TRUE)
+    const struct EvolutionParam *params = evo->params;
+    u32 i;
+    bool32 friendship = FALSE;
+    u16 holdItem = ITEM_NONE, knows = MOVE_NONE;
+    u8 *end = dst;
+
+    *dst = EOS;
+    for (i = 0; params != NULL && params[i].condition != CONDITIONS_END; i++)
     {
-        windowId = AddWindowFromTemplateList(sPageInfoTemplate, PSS_DATA_WINDOW_INFO_ORIGINAL_TRAINER);
-        PrintTextOnWindow(windowId, gText_OTSlash, 0, 1, 0, 1);
-        x = GetStringWidth(FONT_NORMAL, gText_OTSlash, 0);
-        if (sMonSummaryScreen->summary.OTGender == 0)
-            PrintTextOnWindow(windowId, sMonSummaryScreen->summary.OTName, x, 1, 0, 5);
+        if (params[i].condition == IF_MIN_FRIENDSHIP)
+            friendship = TRUE;
+        else if (params[i].condition == IF_HOLD_ITEM)
+            holdItem = params[i].arg1;
+        else if (params[i].condition == IF_KNOWS_MOVE)
+            knows = params[i].arg1;
+    }
+
+    switch (evo->method)
+    {
+    case EVO_LEVEL:
+    case EVO_LEVEL_BATTLE_ONLY:
+        if (evo->param > 1)
+            end = ConvertIntToDecimalStringN(StringCopy(dst, sText_EvoLv), evo->param, STR_CONV_MODE_LEFT_ALIGN, 3);
+        else if (friendship)
+            end = StringCopy(dst, sText_EvoFriendship);
+        else if (holdItem != ITEM_NONE)
+            end = StringAppend(StringCopy(dst, sText_EvoHold), GetItemName(holdItem));   // 'Hold Razor Claw, night'
+        else if (knows != MOVE_NONE)
+            end = StringAppend(StringCopy(dst, sText_EvoKnows), GetMoveName(knows));      // 'Knows Ancient Power'
         else
-            PrintTextOnWindow(windowId, sMonSummaryScreen->summary.OTName, x, 1, 0, 6);
+            end = StringCopy(dst, sText_EvoLevelUp);
+        if (evo->method == EVO_LEVEL_BATTLE_ONLY)
+            end = StringAppend(dst, sText_EvoInBattle);
+        break;
+    case EVO_ITEM:
+        end = StringCopy(dst, GetItemName(evo->param));
+        break;
+    case EVO_TRADE:
+        end = StringCopy(dst, sText_EvoTrade);
+        break;
+    default:
+        StringCopy(dst, sText_EvoOther);
+        return;
+    }
+
+    for (i = 0; params != NULL && params[i].condition != CONDITIONS_END; i++)
+    {
+        switch (params[i].condition)
+        {
+        case IF_MIN_FRIENDSHIP:
+            if (evo->param > 1 || evo->method != EVO_LEVEL)
+                end = StringAppend(dst, sText_EvoSpecial);
+            break;
+        case IF_HOLD_ITEM:
+            if (evo->method == EVO_LEVEL && evo->param <= 1 && !friendship)
+                break;   // already 'Hold <item>'
+            end = StringAppend(dst, sText_EvoHolding);
+            end = StringAppend(dst, GetItemName(params[i].arg1));
+            break;
+        case IF_KNOWS_MOVE:
+            if (evo->method == EVO_LEVEL && evo->param <= 1 && !friendship && holdItem == ITEM_NONE)
+                break;   // already 'Knows <move>'
+            end = StringAppend(dst, sText_EvoKnowing);
+            end = StringAppend(dst, GetMoveName(params[i].arg1));
+            break;
+        case IF_TIME:
+            end = StringAppend(dst, params[i].arg1 == TIME_NIGHT ? sText_EvoNight : sText_EvoDay);
+            break;
+        case IF_GENDER:
+            end = StringAppend(dst, params[i].arg1 == MON_MALE ? sText_EvoMale : sText_EvoFemale);
+            break;
+        // Nothing the player does: the region (never Alola, Galar...
+        // here; those ways aren't counted) and the personality value.
+        case IF_REGION:
+        case IF_NOT_REGION:
+        case IF_PID_UPPER_MODULO_10_GT:
+        case IF_PID_UPPER_MODULO_10_EQ:
+        case IF_PID_UPPER_MODULO_10_LT:
+        case IF_PID_MODULO_100_GT:
+        case IF_PID_MODULO_100_EQ:
+        case IF_PID_MODULO_100_LT:
+            continue;
+        default:
+            end = StringAppend(dst, sText_EvoSpecial);
+            break;
+        }
+        if (params[i].condition != IF_HOLD_ITEM && params[i].condition != IF_KNOWS_MOVE
+         && params[i].condition != IF_TIME && params[i].condition != IF_GENDER)
+            break;   // one ', special' is enough
+    }
+    (void)end;
+}
+
+// FALSE for a way that needs another region (Alolan Raichu, Hisuian
+// Lilligant): it never happens in a run.
+static bool32 EvoInThisRegion(const struct EvolutionParam *params)
+{
+    u32 i;
+    for (i = 0; params != NULL && params[i].condition != CONDITIONS_END; i++)
+    {
+        if (params[i].condition == IF_REGION && params[i].arg1 != GetCurrentRegion())
+            return FALSE;
+        if (params[i].condition == IF_NOT_REGION && params[i].arg1 == GetCurrentRegion())
+            return FALSE;
+    }
+    return TRUE;
+}
+
+static void BufferEvolvesText(u8 *dst)
+{
+    const struct Evolution *evos = GetSpeciesEvolutions(sMonSummaryScreen->summary.species);
+    u32 i, j, count = 0, first = 0;
+
+    for (i = 0; evos != NULL && evos[i].method != EVOLUTIONS_END; i++)
+    {
+        if (evos[i].method == EVO_NONE || evos[i].method == EVO_SPLIT_FROM_EVO
+         || !IsSpeciesEnabled(evos[i].targetSpecies) || !EvoInThisRegion(evos[i].params))
+            continue;
+        for (j = 0; j < i; j++)
+            if (evos[j].targetSpecies == evos[i].targetSpecies)
+                break;
+        if (j < i && count != 0)
+            continue;   // another way to the same species: count it once
+        if (count++ == 0)
+            first = i;
+    }
+    if (count == 0)
+    {
+        StringCopy(dst, sText_EvoNone);
+        return;
+    }
+    BufferEvolveMethod(dst, &evos[first]);
+    if (count > 1)
+    {
+        ConvertIntToDecimalStringN(gStringVar1, count - 1, STR_CONV_MODE_LEFT_ALIGN, 2);
+        StringExpandPlaceholders(dst + StringLength(dst), sText_EvoMore);
     }
 }
 
-static void PrintMonOTID(void)
+static void PrintMonOTName(void)
 {
-    int xPos;
-    if (InBattleFactory() != TRUE && InSlateportBattleTent() != TRUE)
-    {
-        ConvertIntToDecimalStringN(StringCopy(gStringVar1, gText_IDNumber2), (u16)sMonSummaryScreen->summary.OTID, STR_CONV_MODE_LEADING_ZEROS, 5);
-        xPos = GetStringRightAlignXOffset(FONT_NORMAL, gStringVar1, 56);
-        PrintTextOnWindow(AddWindowFromTemplateList(sPageInfoTemplate, PSS_DATA_WINDOW_INFO_ID), gStringVar1, xPos, 1, 0, 1);
-    }
+    u8 *text = Alloc(64);
+    u32 windowId = AddWindowFromTemplateList(sPageInfoTemplate, PSS_DATA_WINDOW_INFO_ORIGINAL_TRAINER);
+    u32 x = GetStringWidth(FONT_NORMAL, sText_EvolvesSlash, 0) + 2;
+
+    PrintTextOnWindow(windowId, sText_EvolvesSlash, 0, 1, 0, 1);
+    BufferEvolvesText(text);
+    PrintTextOnWindowToFitPx(windowId, text, x, 1, 0, 0, WindowWidthPx(windowId) - x);
+    Free(text);
 }
 
 static void PrintMonAbilityName(void)
@@ -3675,15 +3826,6 @@ static void PrintEggOTName(void)
     u32 width = GetStringWidth(FONT_NORMAL, gText_OTSlash, 0);
     PrintTextOnWindow(windowId, gText_OTSlash, 0, 1, 0, 1);
     PrintTextOnWindow(windowId, gText_FiveMarks, width, 1, 0, 1);
-}
-
-static void PrintEggOTID(void)
-{
-    int x;
-    StringCopy(gStringVar1, gText_IDNumber2);
-    StringAppend(gStringVar1, gText_FiveMarks);
-    x = GetStringRightAlignXOffset(FONT_NORMAL, gStringVar1, 56);
-    PrintTextOnWindow(AddWindowFromTemplateList(sPageInfoTemplate, PSS_DATA_WINDOW_INFO_ID), gStringVar1, x, 1, 0, 1);
 }
 
 static void PrintEggState(void)
@@ -3845,6 +3987,9 @@ static void BufferStat(u8 *dst, enum Stat statIndex, u32 stat, u32 strId, u32 n)
     if (!P_SUMMARY_SCREEN_IV_EV_VALUES
         && sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_IVS)
         StringAppend(dst, GetLetterGrade(stat));
+    else if (!P_SUMMARY_SCREEN_IV_EV_VALUES
+        && sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_EVS)
+        StringAppend(dst, GetEvLetterGrade(stat));
     else
         ConvertIntToDecimalStringN(txtPtr, stat, STR_CONV_MODE_RIGHT_ALIGN, n);
 
@@ -3872,6 +4017,24 @@ static const u8 *GetLetterGrade(u32 stat)
         return gText_GradeA;
     else
         return gText_GradeS;
+}
+
+// Roguémon: EVs as letters too, on the IV scale's letters: none
+// F, then D, C, B and A by quarters of the 252 a stat can take, S at 252.
+static const u8 *GetEvLetterGrade(u32 stat)
+{
+    if (stat == 0)
+        return GetLetterGrade(0);
+    else if (stat < 64)
+        return GetLetterGrade(1);
+    else if (stat < 128)
+        return GetLetterGrade(16);
+    else if (stat < 192)
+        return GetLetterGrade(26);
+    else if (stat < MAX_PER_STAT_EVS)
+        return GetLetterGrade(30);
+    else
+        return GetLetterGrade(31);
 }
 
 static void BufferLeftColumnStats(void)
@@ -3919,7 +4082,7 @@ static void PrintLeftColumnStats(void)
 {
     int x;
 
-    if (sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_IVS && !P_SUMMARY_SCREEN_IV_EV_VALUES)
+    if ((sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_IVS || sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_EVS) && !P_SUMMARY_SCREEN_IV_EV_VALUES)
         x = GetStringRightAlignXOffset(FONT_NORMAL, gStringVar4, 46);
     else
         x = 4;
@@ -3942,7 +4105,7 @@ static void PrintRightColumnStats(void)
 {
     int x;
 
-    if (sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_IVS && !P_SUMMARY_SCREEN_IV_EV_VALUES)
+    if ((sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_IVS || sMonSummaryScreen->skillsPageMode == SUMMARY_SKILLS_MODE_EVS) && !P_SUMMARY_SCREEN_IV_EV_VALUES)
         x = GetStringRightAlignXOffset(FONT_NORMAL, gStringVar4, 20);
     else
         x = 2;

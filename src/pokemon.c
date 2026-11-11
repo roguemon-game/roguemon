@@ -3507,7 +3507,7 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, enum Item item, u8 partyIndex, 
             // Rare Candy / EXP Candy
             if ((itemEffect[i] & ITEM3_LEVEL_UP)
              && GetMonData(mon, MON_DATA_LEVEL) != MAX_LEVEL
-             && !(Rogue_IsHardcore() && GetMonData(mon, MON_DATA_LEVEL) >= GetCurrentLevelCap())) // roguemon: Hardcore cap
+             && !(Rogue_RuleOn(RULE_LEVEL_CAP) && GetMonData(mon, MON_DATA_LEVEL) >= GetCurrentLevelCap())) // roguemon: Hardcore cap
             {
                 u8 param = GetItemHoldEffectParam(item);
                 dataUnsigned = 0;

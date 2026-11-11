@@ -2,7 +2,7 @@
 #define GUARD_CONSTANTS_ROGUE_H
 
 // Version of this build. tools/roguemon reads it for release names and covers.
-#define ROGUEMON_VERSION "1.1.8-beta"
+#define ROGUEMON_VERSION "1.2-beta"
 
 // Save data. These reuse vars and flags that vanilla Emerald leaves unused.
 #define VAR_ROGUE_SEED_LO     VAR_UNUSED_0x40F7
@@ -241,6 +241,20 @@
 #define FLAG_ROGUE_RIVAL_GIFT    FLAG_UNUSED_0x034 // the rival's gift was given
 #define FLAG_ROGUE_HARDCORE      FLAG_UNUSED_0x035 // this run plays by the Hardcore rules
 #define FLAG_ROGUE_BIRCH_NEWS    FLAG_UNUSED_0x036 // the professor told this run's news
+// The run's rules (casual mode): one flag per RULES row, set at the
+// run start from the pick on the RULES screen and cleared with the run. A run
+// saved before v1.2 has none set, so it plays on as NUZLOCKE (or HARDCORE,
+// whose flag above still turns on rows 5 to 7: Rogue_RuleOn).
+#define FLAG_ROGUE_RULE_ANY_CATCH  FLAG_UNUSED_0x04B // 1 Catching: ANYTHING
+#define FLAG_ROGUE_RULE_FAINT_STAY FLAG_UNUSED_0x04C // 2 Fainted Pokemon: STAY
+#define FLAG_ROGUE_RULE_REVIVES    FLAG_UNUSED_0x04E // 3 Revives: IN MARTS
+#define FLAG_ROGUE_RULE_RESCUES    FLAG_UNUSED_0x04F // 4 Whole party faints: BACK TO A CENTER x3
+#define FLAG_ROGUE_RULE_NO_ITEMS   FLAG_UNUSED_0x054 // 5 Items in battle: NOT VS TRAINERS
+#define FLAG_ROGUE_RULE_LEVEL_CAP  FLAG_UNUSED_0x055 // 6 Level cap: HARD
+#define FLAG_ROGUE_RULE_SET_STYLE  FLAG_UNUSED_0x068 // 7 Battle style: SET
+#define FLAG_ROGUE_RESCUE_0        FLAG_UNUSED_0x0E9 // rescues used, 0 to 3, in two flags (0x0E9, 0x1AA)
+#define FLAG_ROGUE_RESCUE_1        FLAG_UNUSED_0x1AA
+#define FLAG_ROGUE_RESCUE_TOLD     FLAG_UNUSED_0x1AB // a rescue just happened: the professor's line is due
 // The Mega Stones (v1.1.7, src/rogue_prize.c): the free stone given (the
 // 4th leader's or the prize counter's), and the stones bought, 0 to 3.
 #define FLAG_ROGUE_MEGA_GIFT     FLAG_UNUSED_0x02C
@@ -331,5 +345,32 @@
 // RUN 0's region (include/rogue_run0_region.h): act 4, the Director deletes
 // Terry, and his house is an empty lot (set by the story).
 #define FLAG_ROGUE_RUN0_TERRY_DELETED FLAG_UNUSED_0x4FF
+
+
+// Casual mode: the RULES rows as bits, and the four presets.
+#define RULE_ANY_CATCH   (1 << 0)
+#define RULE_FAINT_STAY  (1 << 1)
+#define RULE_REVIVES     (1 << 2)
+#define RULE_RESCUES     (1 << 3)
+#define RULE_NO_ITEMS    (1 << 4)
+#define RULE_LEVEL_CAP   (1 << 5)
+#define RULE_SET_STYLE   (1 << 6)
+#define RULE_COUNT       7
+#define RULES_ALL        ((1 << RULE_COUNT) - 1)
+#define RULES_HARDCORE_ROWS (RULE_NO_ITEMS | RULE_LEVEL_CAP | RULE_SET_STYLE)
+
+#define ROGUE_PRESET_NUZLOCKE  0 // the default: today's game
+#define ROGUE_PRESET_EASY      1
+#define ROGUE_PRESET_ONE_LIFE  2
+#define ROGUE_PRESET_HARDCORE  3
+#define ROGUE_PRESET_COUNT     4
+#define ROGUE_PRESET_CUSTOM    0xFF
+
+#define RULES_PRESET_NUZLOCKE  0
+#define RULES_PRESET_EASY      (RULE_ANY_CATCH | RULE_FAINT_STAY | RULE_REVIVES | RULE_RESCUES)
+#define RULES_PRESET_ONE_LIFE  (RULE_ANY_CATCH | RULE_FAINT_STAY | RULE_REVIVES)
+#define RULES_PRESET_HARDCORE  RULES_HARDCORE_ROWS
+
+#define ROGUE_RESCUES 3 // party wipes that black out to a Center before the run ends
 
 #endif // GUARD_CONSTANTS_ROGUE_H

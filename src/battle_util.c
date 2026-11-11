@@ -10863,7 +10863,7 @@ bool32 IsAllowedToUseBag(void)
 {
     // roguemon: Hardcore rules allow no items in trainer battles. Wild
     // battles keep the bag for POKé BALLS.
-    if (Rogue_IsHardcore() && (gBattleTypeFlags & BATTLE_TYPE_TRAINER))
+    if (Rogue_RuleOn(RULE_NO_ITEMS) && (gBattleTypeFlags & BATTLE_TYPE_TRAINER))
         return FALSE;
     switch (VarGet(B_VAR_NO_BAG_USE))
     {

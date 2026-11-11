@@ -1994,10 +1994,10 @@ void CB2_WhiteOut(void)
 
     if (++gMain.state >= 120)
     {
-        if (Rogue_GetCurrentPlace() >= 0)
+        if (Rogue_GetCurrentPlace() >= 0 && !Rogue_TryRescue())
         {
             // Nuzlocke: losing the whole party ends the run. There is no
-            // trip back to a Pokemon Center.
+            // trip back to a Pokemon Center (casual mode's rescues aside).
             FieldClearVBlankHBlankCallbacks();
             StopMapMusic();
             Rogue_LoseRun();

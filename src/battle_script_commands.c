@@ -2304,7 +2304,7 @@ static void Cmd_getexp(void)
                     ApplyExperienceMultipliers(&gBattleStruct->battlerExpReward, *expMonId, gBattlerFainted);
 
                     // roguemon: Hardcore rules use a hard level cap.
-                    if ((B_EXP_CAP_TYPE == EXP_CAP_HARD || Rogue_IsHardcore()) && gBattleStruct->battlerExpReward != 0)
+                    if ((B_EXP_CAP_TYPE == EXP_CAP_HARD || Rogue_RuleOn(RULE_LEVEL_CAP)) && gBattleStruct->battlerExpReward != 0)
                     {
                         enum GrowthRate growthRate = gSpeciesInfo[GetMonData(&gParties[B_TRAINER_PLAYER][*expMonId], MON_DATA_SPECIES)].growthRate;
                         u32 currentExp = GetMonData(&gParties[B_TRAINER_PLAYER][*expMonId], MON_DATA_EXP);

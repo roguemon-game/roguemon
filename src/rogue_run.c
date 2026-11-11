@@ -394,6 +394,10 @@ void Rogue_OnWildBattleStart(void)
         return;
     if (shiny)
         Rogue_RecordShinySeen();
+    // Catching: ANYTHING (casual mode): no first-encounter rule, no dupes
+    // clause, and the area's catch is not used up.
+    if (Rogue_RuleOn(RULE_ANY_CATCH))
+        return;
     if (Rogue_IsAreaCatchUsed(area))
     {
         gRogueCatchState = CATCH_USED;
@@ -536,11 +540,15 @@ void Rogue_OnBattleEnd(void)
         Rogue_RecordCatch();
         // A dungeon boss (a legendary-style battle) leaves the area open, so
         // the map does not show it as caught there either.
-        if (area >= 0 && !(gBattleTypeFlags & BATTLE_TYPE_LEGENDARY))
+        if (area >= 0 && !(gBattleTypeFlags & BATTLE_TYPE_LEGENDARY) && !Rogue_RuleOn(RULE_ANY_CATCH))
             Rogue_SetAreaCaught(area);
     }
     // After a lost battle the run is over. Leave the party as it fell.
     if (gBattleOutcome == B_OUTCOME_LOST || gBattleOutcome == B_OUTCOME_DREW)
+        return;
+    // Fainted Pokemon: STAY (casual mode): they stay in the party at 0 HP
+    // until a Center or a Revive, as in the real games. None is lost.
+    if (Rogue_RuleOn(RULE_FAINT_STAY))
         return;
     for (i = 0; i < PARTY_SIZE; i++)
     {
@@ -568,6 +576,50 @@ void Rogue_OnBattleEnd(void)
     }
 }
 
+// ---------------------------------------------------------------------------
+// Whole party faints: BACK TO A CENTER x3 (casual mode)
+
+static u32 RescuesUsed(void)
+{
+    return FlagGet(FLAG_ROGUE_RESCUE_0) | (FlagGet(FLAG_ROGUE_RESCUE_1) << 1);
+}
+
+// The whole party fainted in the region: TRUE if the professor comes to the
+// rescue (the whiteout goes on as in Emerald: to the last POKeMON CENTER's
+// door, the team healed, half the money gone). FALSE when the rule is off or
+// the rescues are used up, and the run is over as always.
+bool32 Rogue_TryRescue(void)
+{
+    u32 used = RescuesUsed();
+    if (!Rogue_RuleOn(RULE_RESCUES) || used >= ROGUE_RESCUES)
+        return FALSE;
+    used++;
+    if (used & 1)
+        FlagSet(FLAG_ROGUE_RESCUE_0);
+    else
+        FlagClear(FLAG_ROGUE_RESCUE_0);
+    if (used & 2)
+        FlagSet(FLAG_ROGUE_RESCUE_1);
+    else
+        FlagClear(FLAG_ROGUE_RESCUE_1);
+    FlagSet(FLAG_ROGUE_RESCUE_TOLD);
+    return TRUE;
+}
+
+static void BufferRescue(void)
+{
+    u32 left = ROGUE_RESCUES - RescuesUsed();
+    u8 *s = StringCopy(gStringVar1, COMPOUND_STRING("PROF. BIRCH: Phew, I found you in time!\nYour POKéMON are healed again.\p"));
+    if (left == 0)
+        StringCopy(s, COMPOUND_STRING("That was my last rescue. If your team\nfalls again, this journey is over."));
+    else
+    {
+        s = StringCopy(s, COMPOUND_STRING("I won't always find you in time.\n"));
+        s = ConvertIntToDecimalStringN(s, left, STR_CONV_MODE_LEFT_ALIGN, 1);
+        StringCopy(s, left == 1 ? COMPOUND_STRING(" rescue left.") : COMPOUND_STRING(" rescues left."));
+    }
+}
+
 // Called every overworld frame. Once the field is free after a battle in
 // which Pokemon fainted, says goodbye to them, so the rule is felt and not
 // just noticed later in the party screen.
@@ -575,6 +627,13 @@ void Rogue_CheckFallenMessage(void)
 {
     if (ScriptContext_IsEnabled() || ArePlayerFieldControlsLocked())
         return;
+    if (FlagGet(FLAG_ROGUE_RESCUE_TOLD))
+    {
+        FlagClear(FLAG_ROGUE_RESCUE_TOLD);
+        BufferRescue();
+        ScriptContext_SetupScript(Rogue_EventScript_Fallen);
+        return;
+    }
     if (sFallenCount == 0)
     {
         if (sPendingUnlocks != 0 || sPendingFeats != 0 || sPendingLegend != RLEG_NONE)
@@ -691,6 +750,21 @@ struct RogueRecord *Rogue_GetRecord(void)
         SET_RECORD_BITS(record, unlocks, RECORD_BITS(record, unlocks) | LadderUnlocks());
         SET_RECORD_BITS(record, runStart, RECORD_BITS(record, runStart) | LadderUnlocks());
     }
+    if (record->ext3Magic != ROGUE_RECORD_EXT3_MAGIC)
+    {
+        // A record from before v1.2 (casual mode): the next run plays as the
+        // last one did, NUZLOCKE, or HARDCORE if its row was on in UNLOCKS.
+        record->ext3Magic = ROGUE_RECORD_EXT3_MAGIC;
+        // Every win before v1.2 was a NUZLOCKE or HARDCORE one: CHAMPION
+        // now comes from the win, not the count, so it is set here.
+        if (VarGet(VAR_ROGUE_META_WINS) != 0)
+            record->feats |= 1u << FEAT_CHAMPION;
+        if (((RECORD_BITS(record, unlocks) & ~RECORD_BITS(record, disabled)) >> UNLOCK_HARDCORE) & 1)
+            record->rulesPreset = ROGUE_PRESET_HARDCORE;
+        else
+            record->rulesPreset = ROGUE_PRESET_NUZLOCKE;
+        record->rulesBits = Rogue_PresetRules(record->rulesPreset);
+    }
     // The CAP CANDY (v1.1.7) is earned from the first run: an older record
     // gets it on load, as earned before this run.
     if (!((RECORD_BITS(record, unlocks) >> UNLOCK_CAP_CANDY) & 1))
@@ -725,7 +799,8 @@ STATIC_ASSERT(offsetof(struct RogueRecord, unlocksHi) == 76, RogueRecordUnlocksH
 STATIC_ASSERT(offsetof(struct RogueRecord, typeBadgesAll) == 92, RogueRecordTypeBadgesAt92);
 STATIC_ASSERT(offsetof(struct RogueRecord, caught) == 116, RogueRecordCaughtAt116);
 STATIC_ASSERT(offsetof(struct RogueRecord, caughtShiny) == 246, RogueRecordCaughtShinyAt246);
-STATIC_ASSERT(sizeof(struct RogueRecord) == 376, RogueRecordSize);
+STATIC_ASSERT(offsetof(struct RogueRecord, ext3Magic) == 376, RogueRecordExt3At376);
+STATIC_ASSERT(sizeof(struct RogueRecord) == 380, RogueRecordSize);
 STATIC_ASSERT(NUMBER_OF_MON_TYPES <= sizeof(((struct RogueRecord *)0)->typeBadgesAll), RogueRecordTypes);
 STATIC_ASSERT(NATIONAL_DEX_COUNT < ROGUE_DEX_BYTES * 8, RogueRecordDex);
 STATIC_ASSERT(ROGUE_NUM_UNLOCKS <= 64, RogueUnlockBits);
@@ -858,8 +933,8 @@ static void UpdateFeats(struct RogueRecord *record)
 {
     u32 feats = record->feats, n = Rogue_CountLegends(record->legends), row;
 
-    if (VarGet(VAR_ROGUE_META_WINS) != 0)
-        feats |= 1u << FEAT_CHAMPION;
+    // CHAMPION is set by the win itself (RecordWinFeats): an EASY or ONE
+    // LIFE win counts for the unlocks but not for this feat and its star.
     if (record->hardcoreWins != 0)
         feats |= 1u << FEAT_HARDCORE;
     if (n >= 1)
@@ -1311,13 +1386,21 @@ static void RecordWinFeats(void)
     const struct RogueRegion *region = Rogue_GetRegion();
     s32 type = Rogue_GetRunStarterType();
     u32 i, bosses = 0;
+    bool32 casual;
 
     // Every dungeon with a boss: a dungeon with none is never cleared.
     for (i = 0; i < region->nDungeons; i++)
         bosses += region->dungeons[i].boss != RBOSS_NONE;
+    // Casual mode: a win with catch-anything, fainted-stay,
+    // Revives or rescues opens the Champion-gated unlocks (they follow
+    // VAR_ROGUE_META_WINS), but not the CHAMPION feat and its card star.
+    // FLAWLESS (no Pokemon lost) means nothing when none can be lost.
+    casual = Rogue_RuleOn(RULE_ANY_CATCH | RULE_FAINT_STAY | RULE_REVIVES | RULE_RESCUES);
+    if (!casual)
+        record->feats |= 1u << FEAT_CHAMPION;
     if (type >= 0 && Rogue_PartyHasStarter())
         record->feats |= 1u << (FEAT_WIN_GRASS + type);
-    if (VarGet(VAR_ROGUE_FALLEN) == 0)
+    if (VarGet(VAR_ROGUE_FALLEN) == 0 && !casual)
         record->feats |= 1u << FEAT_FLAWLESS;
     if (bosses != 0 && Rogue_CountDungeonsCleared() >= bosses)
         record->feats |= 1u << FEAT_ALL_DUNGEONS;
@@ -1443,7 +1526,7 @@ static const u8 *const sUnlockNews[ROGUE_NUM_UNLOCKS] =
     [UNLOCK_FOSSILS]         = COMPOUND_STRING("All that caving paid off! Diggers\nsay fossils turn up in the cave\lbefore the fourth GYM.\pA scientist in that GYM town can\nbring them back to life!"),
     [UNLOCK_RARE_FINDS]      = COMPOUND_STRING("Fifty catches! You've inspired me.\nI'll track rare POKéMON for you.\pIn every land, I'll tell you\nwhere one was seen."),
     [UNLOCK_RIVAL_GIFT]      = COMPOUND_STRING("My kid has a present for you.\nA thank-you for all those battles!\pIt'll be waiting at the foot\nof VICTORY ROAD."),
-    [UNLOCK_HARDCORE]        = COMPOUND_STRING("A CHAMPION! Want a real test now?\nTurn on the HARDCORE RULES from\lUNLOCKS on the main menu."),
+    [UNLOCK_HARDCORE]        = COMPOUND_STRING("A CHAMPION! Want a real test now?\nPick HARDCORE on the RULES\lscreen after NEW RUN."),
     [UNLOCK_EXPLORER]        = COMPOUND_STRING("You've been so deep underground!\nI packed ESCAPE ROPES and a\lMAX REPEL. Just in case."),
     [UNLOCK_MARKING_MAP]     = COMPOUND_STRING("Your legend reports helped me\nmake a MARKING MAP.\pYour region map will show where\neach legend sleeps!"),
     [UNLOCK_MASTER_BALL]     = COMPOUND_STRING("Ten legends! I can hardly believe\nit. Take this MASTER BALL.\pIt catches any POKéMON without\nfail. Use it wisely!"),

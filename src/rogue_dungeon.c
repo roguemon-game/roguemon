@@ -1902,7 +1902,7 @@ void Rogue_PrepareMasterReward(void)
 {
     s32 dungeon = Rogue_GetCurrentDungeon();
     gSpecialVar_0x8000 = RogueGen_ItemFor(Rogue_GetRegion(), RITEMS_MASTER, dungeon < 0 ? 0 : dungeon, NULL,
-                                          FlagGet(FLAG_ROGUE_HARDCORE) ? ROGUE_ITEMS_HARDCORE : 0);
+                                          Rogue_RuleOn(RULE_NO_ITEMS) ? ROGUE_ITEMS_HARDCORE : 0);
     if (gSpecialVar_0x8000 == ITEM_NONE)
         gSpecialVar_0x8000 = ITEM_TM_FACADE;
 }

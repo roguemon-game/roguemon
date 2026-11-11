@@ -50,11 +50,11 @@
 #define ROGUE_MEGA_STONE_CAP 3
 #define ROGUE_MEGA_STONE_PRICE 10000
 #define MAX_MEGA_CHOICES 8
-#define MAX_PRIZE_STOCK 10
+#define MAX_PRIZE_STOCK 12
 
-static EWRAM_DATA u16 sPrizeStock[MAX_PRIZE_STOCK] = {0};
-static EWRAM_DATA u16 sMegaChoices[MAX_MEGA_CHOICES] = {0};
-static EWRAM_DATA u8 sMegaChoiceCount = 0;
+static IWRAM_DATA u16 sPrizeStock[MAX_PRIZE_STOCK] = {0}; // these three in IWRAM: EWRAM is full
+static IWRAM_DATA u16 sMegaChoices[MAX_MEGA_CHOICES] = {0};
+static IWRAM_DATA u8 sMegaChoiceCount = 0;
 
 bool32 Rogue_IsMegaStone(u16 item)
 {
@@ -212,6 +212,40 @@ static u16 CounterStone(u32 place)
     return list[RogueRng_Hash(Rogue_GetSeed(), 18700 + place * 16 + (badges > 8 ? 8 : badges)) % n];
 }
 
+// The counter's evolution item: one that a Pokemon in the party needs to
+// evolve and the player doesn't have (a LINKING CORD, a LEADER'S CREST, a
+// KING'S ROCK, a sweet for MILCERY...), as the shops of Legends: Arceus and
+// Scarlet and Violet sell them, so no evolution waits on a trade or on an
+// item a run never hands out. ITEM_NONE if there is none.
+static u16 CounterEvoItem(u32 place)
+{
+    u16 list[8];
+    u32 i, j, k, n = 0, badges = Rogue_BadgeCount();
+    for (i = 0; i < PARTY_SIZE; i++)
+    {
+        u16 species = GetMonData(&gPlayerParty[i], MON_DATA_SPECIES), held;
+        const struct Evolution *evo;
+        if (species == SPECIES_NONE || species >= NUM_SPECIES || GetMonData(&gPlayerParty[i], MON_DATA_IS_EGG))
+            continue;
+        held = GetMonData(&gPlayerParty[i], MON_DATA_HELD_ITEM);
+        evo = GetSpeciesEvolutions(species);
+        for (j = 0; evo != NULL && evo[j].method != EVOLUTIONS_END; j++)
+        {
+            u16 item = evo[j].method == EVO_ITEM ? evo[j].param : ITEM_NONE;
+            for (k = 0; item == ITEM_NONE && evo[j].params != NULL && evo[j].params[k].condition != CONDITIONS_END; k++)
+                if (evo[j].params[k].condition == IF_HOLD_ITEM)
+                    item = evo[j].params[k].arg1;
+            // Not the key items (KUBFU's scrolls), nor one already had.
+            if (item != ITEM_NONE && item < ITEMS_COUNT && GetItemPrice(item) != 0 && item != held
+             && !CheckBagHasItem(item, 1) && !CheckPCHasItem(item, 1))
+                AddUnique(list, &n, ARRAY_COUNT(list), item);
+        }
+    }
+    if (n == 0)
+        return ITEM_NONE;
+    return list[RogueRng_Hash(Rogue_GetSeed(), 18800 + place * 16 + (badges > 8 ? 8 : badges)) % n];
+}
+
 // The price of a Mega Stone at the counter. Items with no price of their
 // own are not sold back (vanilla's rule), so a stone can't be sold.
 u32 Rogue_PrizePrice(u32 price, u16 item)
@@ -256,14 +290,20 @@ static u32 ItemPrice(u16 item)
 // (or in RUN 0); else TRUE and the stock ready.
 void Rogue_PreparePrizeCounter(void)
 {
-    u32 place = Rogue_GetCurrentTownPlace(), n;
-    u16 stone;
+    u32 place = Rogue_GetCurrentTownPlace(), n, i;
+    u16 stone, evoItem;
     gSpecialVar_Result = FALSE;
     if (Rogue_IsRun0() || Rogue_BadgeCount() < RogueGen_PrizeBadges(Rogue_GetRegion()))
         return;
     stone = CounterStone(place);
-    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 1,
+    evoItem = CounterEvoItem(place);
+    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 3,
                             MegasHere() && stone == ITEM_NONE, ItemPrice);
+    for (i = 0; i < n && evoItem != ITEM_NONE; i++)
+        if (sPrizeStock[i] == evoItem)
+            evoItem = ITEM_NONE;
+    if (evoItem != ITEM_NONE)
+        sPrizeStock[n++] = evoItem;
     if (stone != ITEM_NONE)
         sPrizeStock[n++] = stone;
     sPrizeStock[n] = ITEM_NONE;

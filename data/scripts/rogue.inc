@@ -708,6 +708,19 @@ Rogue_EventScript_MartClerk::
 	special Rogue_Run0PrepareMart
 	goto_if_eq VAR_RESULT, TRUE, Rogue_EventScript_Run0Mart
 	specialvar VAR_RESULT, Rogue_GetMartTier
+	@ Revives: IN MARTS (casual mode): the same lists with REVIVE from the
+	@ 2nd tier and MAX REVIVE from the 4th. Marts only, so item balls and
+	@ the run's ledger stay the same.
+	goto_if_unset FLAG_ROGUE_RULE_REVIVES, Rogue_EventScript_MartNoRevives
+	switch VAR_RESULT
+	case 0, Rogue_EventScript_Mart0
+	case 1, Rogue_EventScript_Mart1
+	case 2, Rogue_EventScript_MartR2
+	case 3, Rogue_EventScript_MartR3
+	case 4, Rogue_EventScript_MartR4
+	goto Rogue_EventScript_MartR5
+
+Rogue_EventScript_MartNoRevives:
 	switch VAR_RESULT
 	case 0, Rogue_EventScript_Mart0
 	case 1, Rogue_EventScript_Mart1
@@ -977,6 +990,10 @@ Rogue_Run0Mart_Items::
 	rogue_mart 3
 	rogue_mart 4
 	rogue_mart 5
+	rogue_mart R2
+	rogue_mart R3
+	rogue_mart R4
+	rogue_mart R5
 
 	.align 2
 Rogue_Mart0_Items:
@@ -1020,6 +1037,22 @@ Rogue_Mart2_Items:
 	pokemartlistend
 
 	.align 2
+Rogue_MartR2_Items::
+	.2byte ITEM_POKE_BALL
+	.2byte ITEM_GREAT_BALL
+	.2byte ITEM_POTION
+	.2byte ITEM_SUPER_POTION
+	.2byte ITEM_REVIVE
+	.2byte ITEM_ANTIDOTE
+	.2byte ITEM_PARALYZE_HEAL
+	.2byte ITEM_BURN_HEAL
+	.2byte ITEM_ICE_HEAL
+	.2byte ITEM_AWAKENING
+	.2byte ITEM_SUPER_REPEL
+	.2byte ITEM_ESCAPE_ROPE
+	pokemartlistend
+
+	.align 2
 Rogue_Mart3_Items:
 	.2byte ITEM_POKE_BALL
 	.2byte ITEM_GREAT_BALL
@@ -1027,6 +1060,28 @@ Rogue_Mart3_Items:
 	.2byte ITEM_TIMER_BALL
 	.2byte ITEM_SUPER_POTION
 	.2byte ITEM_HYPER_POTION
+	.2byte ITEM_FULL_HEAL
+	.2byte ITEM_SUPER_REPEL
+	.2byte ITEM_ESCAPE_ROPE
+	.2byte ITEM_X_ATTACK
+	.2byte ITEM_X_DEFENSE
+	.2byte ITEM_FIRE_STONE
+	.2byte ITEM_WATER_STONE
+	.2byte ITEM_THUNDER_STONE
+	.2byte ITEM_LEAF_STONE
+	.2byte ITEM_MOON_STONE
+	.2byte ITEM_SUN_STONE
+	pokemartlistend
+
+	.align 2
+Rogue_MartR3_Items::
+	.2byte ITEM_POKE_BALL
+	.2byte ITEM_GREAT_BALL
+	.2byte ITEM_ULTRA_BALL
+	.2byte ITEM_TIMER_BALL
+	.2byte ITEM_SUPER_POTION
+	.2byte ITEM_HYPER_POTION
+	.2byte ITEM_REVIVE
 	.2byte ITEM_FULL_HEAL
 	.2byte ITEM_SUPER_REPEL
 	.2byte ITEM_ESCAPE_ROPE
@@ -1063,6 +1118,30 @@ Rogue_Mart4_Items::
 	pokemartlistend
 
 	.align 2
+Rogue_MartR4_Items::
+	.2byte ITEM_ULTRA_BALL
+	.2byte ITEM_TIMER_BALL
+	.2byte ITEM_DUSK_BALL
+	.2byte ITEM_QUICK_BALL
+	.2byte ITEM_HYPER_POTION
+	.2byte ITEM_MAX_POTION
+	.2byte ITEM_REVIVE
+	.2byte ITEM_MAX_REVIVE
+	.2byte ITEM_FULL_HEAL
+	.2byte ITEM_MAX_REPEL
+	.2byte ITEM_ESCAPE_ROPE
+	.2byte ITEM_X_ATTACK
+	.2byte ITEM_X_DEFENSE
+	.2byte ITEM_X_SPEED
+	.2byte ITEM_FIRE_STONE
+	.2byte ITEM_WATER_STONE
+	.2byte ITEM_THUNDER_STONE
+	.2byte ITEM_LEAF_STONE
+	.2byte ITEM_MOON_STONE
+	.2byte ITEM_SUN_STONE
+	pokemartlistend
+
+	.align 2
 Rogue_Mart5_Items::
 	.2byte ITEM_ULTRA_BALL
 	.2byte ITEM_TIMER_BALL
@@ -1071,6 +1150,32 @@ Rogue_Mart5_Items::
 	.2byte ITEM_HYPER_POTION
 	.2byte ITEM_MAX_POTION
 	.2byte ITEM_FULL_RESTORE
+	.2byte ITEM_FULL_HEAL
+	.2byte ITEM_MAX_REPEL
+	.2byte ITEM_ESCAPE_ROPE
+	.2byte ITEM_X_ATTACK
+	.2byte ITEM_X_DEFENSE
+	.2byte ITEM_X_SPEED
+	.2byte ITEM_X_SP_ATK
+	.2byte ITEM_FIRE_STONE
+	.2byte ITEM_WATER_STONE
+	.2byte ITEM_THUNDER_STONE
+	.2byte ITEM_LEAF_STONE
+	.2byte ITEM_MOON_STONE
+	.2byte ITEM_SUN_STONE
+	pokemartlistend
+
+	.align 2
+Rogue_MartR5_Items::
+	.2byte ITEM_ULTRA_BALL
+	.2byte ITEM_TIMER_BALL
+	.2byte ITEM_DUSK_BALL
+	.2byte ITEM_QUICK_BALL
+	.2byte ITEM_HYPER_POTION
+	.2byte ITEM_MAX_POTION
+	.2byte ITEM_FULL_RESTORE
+	.2byte ITEM_REVIVE
+	.2byte ITEM_MAX_REVIVE
 	.2byte ITEM_FULL_HEAL
 	.2byte ITEM_MAX_REPEL
 	.2byte ITEM_ESCAPE_ROPE

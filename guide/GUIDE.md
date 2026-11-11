@@ -1,6 +1,6 @@
 # Roguémon Player Guide
 
-Version 1.1.8-beta
+Version 1.2-beta
 
 ## What Roguémon is
 
@@ -22,7 +22,7 @@ To update to a new version, patch a clean Emerald ROM with the new patch and giv
 
 ### The title menu
 
-- **NEW RUN** starts a new region. If a run is saved, the game warns you first: starting a new run ends the saved one.
+- **NEW RUN** starts a new region. If a run is saved, the game warns you first: starting a new run ends the saved one. Then the RULES screen asks how you want to play (see "Rules").
   Press left or right on it to turn it into **DAILY REGION**: one region a day, the same for everyone who plays that day, with the CLASSIC POKéDEX mix. Prof. Birch tells you the date. It uses your console's or emulator's clock, so without a clock the row stays NEW RUN.
 - **CONTINUE RUN** appears while a run is in progress.
 - **UNLOCKS** appears once you have played a run. It shows your unlocks, feats and legends (see "The record and unlocks").
@@ -36,7 +36,7 @@ On your first run, Prof. Birch explains the game and asks your name. Then he sho
 
 - **YES** starts the run in that region.
 - **NO** grows a different region and shows it.
-- **TYPE NAME** lets you type a region's name, or a friend's run code, and go there.
+- **TYPE NAME** lets you type a region's name, a friend's run code, or a theme word (see "Themed regions"), and go there.
 
 Pressing B on this screen does nothing, so mashing B through his text will not skip a region by accident.
 
@@ -45,6 +45,18 @@ On later runs, Birch skips the long speech. He recaps your last run and shows yo
 ### Region names
 
 A region's name is its seed. There are 16,384 regions, each named with three syllables (like KALONA or TOVASSA). Typing any word with TYPE NAME leads to some region too.
+
+### Themed regions
+
+Type a theme word with TYPE NAME, like FIRE, OCEAN or GHOST, and Birch shows a region that leans that way. Every time you type it you get a different one. A FIRE region always has a FIRE gym, often an early one, and more of the routes, towns and weather that suit FIRE: volcanic ash, hot springs, sunny deserts. The rest of the region is as varied as any other. The region keeps its own name, so you can share it like any region.
+
+The words:
+
+- **Types:** NORMAL, FIRE, WATER, GRASS, ELECTRIC, ICE, FIGHTING, POISON, GROUND, FLYING, PSYCHIC, BUG, ROCK, GHOST, DRAGON, DARK, STEEL, FAIRY. There are no BUG, STEEL or FAIRY gym leaders, so those three lean only by their routes and towns.
+- **Places:** OCEAN (or SEA), ISLAND, BEACH, FOREST, JUNGLE, SWAMP, MOUNTAIN, CAVE, DESERT, VOLCANO, RIVER, LAKE, MEADOW, FLOWER (or FLOWERS), CITY.
+- **Weather:** SUN (or SUNNY), RAIN, STORM (or THUNDER), SAND, FOG (or MIST), ASH, SNOW. Also SPOOKY.
+
+Any other word still leads to the same region every time.
 
 The same name always gives the same land, towns, trainers, leaders and items. The wild Pokémon also depend on your POKéDEX mix (see "The POKéDEX mix"). To share a run with a friend, give them its run code. When a run ends, the run page of the summary shows it, like `Run code: KALONA-N`: the region's name and a letter for the POKéDEX mix (C for CLASSIC, N for NATIONAL, G for GLOBAL). Typed with TYPE NAME, the code gives the same region with the same mix, whatever mix your friend picked. Prof. Birch will also remind you of the name and mix if you talk to him in his lab.
 
@@ -65,9 +77,28 @@ Unlocks add more to this kit.
 
 You cannot leave the first town until you have a starter. Talk to Birch again any time to hear where the first gym is and the region's name to give a friend.
 
+## Rules
+
+After NEW RUN, the RULES screen asks **HOW DO YOU WANT TO PLAY?** It opens on your last pick, so press A to play the same way again.
+
+| Preset | Catching | Fainted Pokémon | Revives | Whole party faints |
+| --- | --- | --- | --- | --- |
+| NUZLOCKE (default) | First encounter per area | Gone | None | Run over |
+| EASY | Anything | Rest until a Center or Revive | In Marts | Back to a Center, 3 times |
+| ONE LIFE | Anything | Rest until a Center or Revive | In Marts | Run over |
+| HARDCORE | First encounter per area | Gone | None | Run over |
+
+HARDCORE adds a level cap, no items against trainers and SET style (see "Hardcore rules"). It shows as "??? Beat the CHAMPION" until you have won once.
+
+Below the presets are the seven rules themselves. Press left or right (or A) on one to change it, and the preset turns into **CUSTOM**. Press START to play your pick, or A on a preset to play it. The rules hold for the whole run, and the run summary names them.
+
+- **Back to a Center:** the first three times your whole party faints, Prof. Birch finds you and brings you to the last Pokémon Center you used, with your team healed. He tells you how many rescues are left. The fourth time, the run is over.
+- **The DAILY REGION** always plays NUZLOCKE, so everyone plays the same challenge. RUN 0 has rules of its own.
+- **Wins:** every preset counts for runs, wins, badges, legends and unlocks. The CHAMPION feat and its trainer card star need a win with first-encounter catching, fainted Pokémon gone, no Revives and no rescues (NUZLOCKE, HARDCORE, or CUSTOM with those four).
+
 ## Nuzlocke rules
 
-The game enforces these for you.
+Under NUZLOCKE (and HARDCORE) the game enforces these for you.
 
 - **One catch per area.** You may only catch the first wild Pokémon you meet in each area. The battle tells you when it starts. You cannot throw a ball at later ones. The area is used as soon as that first battle starts, so if it flees, faints or you run away, the area is still used.
 - **Dupes clause.** If you meet a Pokémon you have already caught, it does not use up the area. The battle tells you ("You already have this POKéMON"). You cannot catch it, but the area stays open for the next encounter.
@@ -194,7 +225,7 @@ Battles use pokeemerald-expansion's modern rules and moves, including the Fairy 
 
 ### Hardcore rules
 
-Once you become Champion, you can turn on the **HARDCORE RULES** in UNLOCKS. They are off until you switch them on, and they hold for the whole run.
+Once you become Champion, you can pick **HARDCORE** on the RULES screen. Its three extra rules can also be picked one by one as CUSTOM.
 
 - **Level cap:** no Pokémon can gain EXP or use a Rare Candy past the next gym leader's ace level. After eight badges, the cap follows each Elite Four member's ace and then the Champion's.
 - **No items in battle.** You can still throw Poké Balls in wild battles.
@@ -206,10 +237,10 @@ Once you become Champion, you can turn on the **HARDCORE RULES** in UNLOCKS. The
 Most things work as in Emerald. These are the differences that may surprise you:
 
 - **No Revives.** They are never found or sold, since a fainted Pokémon is gone anyway.
-- **Trade evolutions use the item from the bag.** There is no one to trade with, so use a Metal Coat, Dragon Scale, Up-Grade or Linking Cord from the bag to evolve.
+- **Trade evolutions use the item from the bag.** There is no one to trade with, so use a Metal Coat, Dragon Scale, Up-Grade or Linking Cord from the bag to evolve. Karrablast and Shelmet evolve with a Linking Cord while the other one is in your party. Bisharp evolves into Kingambit with a Leader's Crest from the bag.
 - **Marts grow with your badges.** From the fifth badge they sell Timer Balls and the plain evolution stones (Fire, Water, Thunder, Leaf, Moon and Sun). From the seventh badge they sell Dusk and Quick Balls. No Mart sells Ethers or Elixirs, but you can find some late in the run.
 - **Specialty counters.** Some gym cities have a second clerk with a specialty: X items, vitamins, evolution stones, special balls, TMs, held items, herbs or type items.
-- **The Game Corner.** Each region has one Game Corner, in a gym city you reach mid-run; its town sign says "Home of the GAME CORNER!", and the gym leader whose badge opens the way tells you where it is and gives you a COIN CASE. Inside are Emerald's own slot machines and roulette tables, and the clerk sells coins for money (50 for 1,000). The prize desk trades coins for two or three TMs and two held items (100 to 400 coins) and three of the region's Pokémon, a little under the level cap (300 coins, 600 from the fourth badge, 1,000 from the seventh; each sold once a run). The prizes change each run and with each badge.
+- **The Game Corner.** Each region has one Game Corner, in a gym city you reach mid-run; its town sign says "Home of the GAME CORNER!", and the gym leader whose badge opens the way tells you where it is and gives you a COIN CASE. Inside are Emerald's own slot machines and roulette tables, and the clerk sells coins for money (50 for 1,000). The prize desk trades coins for two or three TMs and two held items (100 to 400 coins) and three of the region's Pokémon, a little under the level cap (300 coins, 600 from the fourth badge, 1,000 from the seventh; each sold once a run). If a Pokémon in your party needs an evolution item you don't have (a King's Rock, a Leader's Crest, a Linking Cord...), the desk sells one of those too. The prizes change each run and with each badge.
 - **Mega Evolution.** The fifth gym leader gives you the MEGA RING and a Mega Stone for a Pokémon in your team that can Mega Evolve (its whole evolution line counts; if several fit, you pick). From then on the Game Corner's prize desk also offers Mega Stones (600 coins each) for Pokémon you have, at most three stones in a run.
 - **Gym leaders** give a TM of their type with the badge.
 - **Held items are rare.** A run hands out at most one of each held item. Rare Candies start after the second badge, and Full Restores after the seventh.
@@ -268,7 +299,7 @@ Choose UNLOCKS on the title menu. It has three pages: UNLOCKS, FEATS and LEGENDS
 | DOWSING MACHINE | Clear every dungeon with a boss in one run, then win it | A Dowsing Machine in your starting kit |
 | CHAMPION'S KIT | Become Champion | Great Balls and Super Potions in your starting kit |
 | CHAMPION'S PARTNER | Become Champion | Your winning lead's kind as a starter choice |
-| HARDCORE RULES | Become Champion | Level caps, no items in battle, SET style (earned switched off) |
+| HARDCORE RULES | Become Champion | Opens HARDCORE on the RULES screen |
 | NATIONAL DEX | Become Champion | The NATIONAL POKéDEX mix can be picked |
 | ANY POKéMON | Become Champion three times | Any first-stage Pokémon as a starter, plus the legends you have caught |
 | GLOBAL DEX | Become Champion three times | The GLOBAL POKéDEX mix can be picked |
@@ -295,7 +326,7 @@ Feats are goals that last past a win. They are on the second page of the UNLOCKS
 
 | Feat | How | Reward |
 | --- | --- | --- |
-| CHAMPION | Beat the Champion | A trainer card star |
+| CHAMPION | Beat the Champion under NUZLOCKE or HARDCORE rules | A trainer card star |
 | HARDCORE | Win under the Hardcore rules | A trainer card star |
 | GRASS / FIRE / WATER STARTER | Win with a starter of that type still in your party | All three: a trainer card star |
 | NOBODY LEFT BEHIND | Win without losing a Pokémon | |

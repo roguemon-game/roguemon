@@ -179,6 +179,51 @@ int main(int argc, char **argv)
                 printf("role item=%d role=%d\n", i, RogueGen_ItemRole(i));
         return 0;
     }
+    if (argc > 2 && strcmp(argv[1], "--themes") == 0)
+    {
+        // What a region leans to, for theme_table.py (typed theme words):
+        // per seed its gym and Elite Four types (RTYPE_*), a count of routes
+        // per RROUTE_*, of towns per RTHEME_*, of routes per RWEATHER_*, and
+        // its caves. gen_host --themes FIRST COUNT
+        u32 first = strtoul(argv[2], NULL, 0), n = argc > 3 ? strtoul(argv[3], NULL, 0) : 1, s;
+        for (s = first; s < first + n; s++)
+        {
+            u8 gyms[ROGUE_NUM_GYMS], e4[4];
+            int routes[RROUTE_COUNT] = {0}, themes[RTHEME_COUNT] = {0}, weather[8] = {0}, caves = 0;
+            RogueGen_BuildRegion(&sRegion, s);
+            RogueGen_RegionLeaders(&sRegion, gyms, e4);
+            for (i = 0; i < sRegion.nPlaces; i++)
+            {
+                const struct RoguePlace *p = &sRegion.places[i];
+                if (p->kind == RPLACE_TOWN && p->theme < RTHEME_COUNT)
+                    themes[p->theme]++;
+                else if (p->kind == RPLACE_CAVE)
+                    caves++;
+                else if (p->kind == RPLACE_ROUTE && p->type < RROUTE_COUNT)
+                {
+                    routes[p->type]++;
+                    weather[RogueGen_RouteWeather(&sRegion, i) & 7]++;
+                }
+            }
+            printf("%u %d g", s, RogueGen_IsAwkwardRegionName(s));
+            for (i = 0; i < ROGUE_NUM_GYMS; i++)
+                printf(" %d", gRogueGenLeaders[gyms[i]].type);
+            printf(" e");
+            for (i = 0; i < 4; i++)
+                printf(" %d", gRogueGenLeaders[e4[i]].type);
+            printf(" r");
+            for (i = 0; i < RROUTE_COUNT; i++)
+                printf(" %d", routes[i]);
+            printf(" t");
+            for (i = 0; i < RTHEME_COUNT; i++)
+                printf(" %d", themes[i]);
+            printf(" w");
+            for (i = 0; i < 8; i++)
+                printf(" %d", weather[i]);
+            printf(" c %d\n", caves);
+        }
+        return 0;
+    }
     if (getenv("ROGUE_VISIT"))
         sHostVisit = atoi(getenv("ROGUE_VISIT"));
     RogueGen_BuildRegion(&sRegion, seed);

@@ -170,6 +170,10 @@
 
 #define OPTION_MENU_FLAG (1 << 15)
 #define UNLOCKS_MENU_FLAG (1 << 14) // roguemon: returning from the UNLOCKS screen
+// roguemon: returning from the RULES screen (casual mode), with A
+// (on into the professor's speech) or B (back to NEW RUN).
+#define RULES_GO_FLAG   (1 << 13)
+#define RULES_BACK_FLAG (1 << 12)
 
 // Static type declarations
 
@@ -779,7 +783,15 @@ static void Task_MainMenuCheckSaveFile(u8 taskId)
         tHasEndless = tHasRun0 && Rogue_Run0EndlessUnlocked();
         if (!tHasEndless)
             sRun0RowEndless = FALSE;
-        if (sCurrItemAndOptionMenuCheck & UNLOCKS_MENU_FLAG)   // roguemon: back from UNLOCKS, highlight it
+        if (sCurrItemAndOptionMenuCheck & (RULES_GO_FLAG | RULES_BACK_FLAG))   // roguemon: back from RULES, on NEW RUN
+        {
+            // A on RULES goes on as if NEW RUN were pressed again, already
+            // confirmed (tNewRunConfirmed 2: the rules are picked).
+            if (sCurrItemAndOptionMenuCheck & RULES_GO_FLAG)
+                tNewRunConfirmed = 2;
+            sCurrItemAndOptionMenuCheck = tMenuType == HAS_NO_SAVED_GAME ? 0 : 1;
+        }
+        else if (sCurrItemAndOptionMenuCheck & UNLOCKS_MENU_FLAG)   // roguemon: back from UNLOCKS, highlight it
         {
             sCurrItemAndOptionMenuCheck = tMenuType + 1 + tHasRun0;
         }
@@ -801,7 +813,7 @@ static void Task_MainMenuCheckSaveFile(u8 taskId)
         }
         if ((sCurrItemAndOptionMenuCheck & OPTION_MENU_FLAG) && HasUnlocksItem())
             sCurrItemAndOptionMenuCheck += 1 + tHasRun0;
-        sCurrItemAndOptionMenuCheck &= ~(OPTION_MENU_FLAG | UNLOCKS_MENU_FLAG);  // turn off the "returning from options menu" flag
+        sCurrItemAndOptionMenuCheck &= ~(OPTION_MENU_FLAG | UNLOCKS_MENU_FLAG | RULES_GO_FLAG | RULES_BACK_FLAG);  // turn off the "returning from options menu" flag
         tCurrItem = sCurrItemAndOptionMenuCheck;
         tItemCount = tMenuType + 2 + HasUnlocksItem() + tHasRun0;
         if (tCurrItem >= tItemCount)
@@ -1133,7 +1145,8 @@ static bool8 HandleMainMenuInput(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
 
-    if (JOY_NEW(A_BUTTON))
+    // roguemon: back from RULES with A: NEW RUN goes on by itself.
+    if (tNewRunConfirmed == 2 || JOY_NEW(A_BUTTON))
     {
         PlaySE(SE_SELECT);
         IsWirelessAdapterConnected();   // why bother calling this here? debug? Task_HandleMainMenuAPressed will check too
@@ -1377,6 +1390,16 @@ static void Task_HandleMainMenuAPressed(u8 taskId)
                 return;
             }
 
+            // roguemon: the RULES screen first (casual mode), from
+            // the very first run. The DAILY REGION always plays NUZLOCKE.
+            if (!sNewRunDaily && gTasks[taskId].tNewRunConfirmed != 2)
+            {
+                SetMainCallback2(CB2_RogueRules);
+                DestroyTask(taskId);
+                FreeAllWindowBuffers();
+                sCurrItemAndOptionMenuCheck = 0;
+                return;
+            }
             gPlttBufferUnfaded[0] = RGB_BLACK;
             gPlttBufferFaded[0] = RGB_BLACK;
             FadeOutBGM(4);   // the title theme, still playing on this menu
@@ -2863,3 +2886,11 @@ static void Task_NewGameBirchSpeech_ReturnFromNamingScreenShowTextbox(u8 taskId)
 }
 
 #undef tTimer
+
+// roguemon: the RULES screen is done (src/rogue_ui.c): A goes on into the
+// professor's speech, B back to the main menu on NEW RUN.
+void MainMenu_ReturnFromRules(bool32 go)
+{
+    sCurrItemAndOptionMenuCheck = go ? RULES_GO_FLAG : RULES_BACK_FLAG;
+    SetMainCallback2(CB2_ReinitMainMenu);
+}

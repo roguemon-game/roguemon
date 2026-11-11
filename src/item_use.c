@@ -1222,7 +1222,7 @@ bool32 CannotUseItemsInBattle(enum Item itemId, struct Pokemon *mon)
     StringExpandPlaceholders(gStringVar4, gText_WontHaveEffect);
 
     // roguemon: Hardcore rules allow no items in battle, except POKé BALLS.
-    if (Rogue_IsHardcore() && battleUsage != EFFECT_ITEM_THROW_BALL)
+    if (Rogue_RuleOn(RULE_NO_ITEMS) && battleUsage != EFFECT_ITEM_THROW_BALL)
     {
         StringExpandPlaceholders(gStringVar4, COMPOUND_STRING("The HARDCORE RULES allow no\nitems in battle."));
         return TRUE;

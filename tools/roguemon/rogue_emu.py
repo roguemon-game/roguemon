@@ -504,9 +504,14 @@ class GameData:
 
     def mart_items(self, tier):
         """What the Mart sells at a stock tier, in list order, read from the
-        ROM (Rogue_MartN_Items in data/scripts/rogue.inc)."""
+        ROM (Rogue_MartN_Items in data/scripts/rogue.inc). Casual mode's
+        Revives row (flag 0x4E) sells from Rogue_MartRN_Items from the
+        2nd tier."""
         self.load_tables()
-        raw = self.rom_bytes(self.sym['Rogue_Mart%d_Items' % tier], 64)
+        name = 'Rogue_Mart%d_Items' % tier
+        if tier >= 2 and 'Rogue_MartR%d_Items' % tier in self.sym and self.flag(0x4E):
+            name = 'Rogue_MartR%d_Items' % tier
+        raw = self.rom_bytes(self.sym[name], 64)
         items = []
         for i in range(0, 64, 2):
             item = struct.unpack_from('<H', raw, i)[0]

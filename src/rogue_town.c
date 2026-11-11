@@ -1276,7 +1276,7 @@ static EWRAM_DATA u16 sSpecialtyStock[13] = {0};
 void Rogue_PrepareSpecialtyShop(void)
 {
     u32 place = Rogue_GetCurrentTownPlace(), shop = RogueGen_SpecialtyShop(Rogue_GetRegion(), place);
-    u8 flags = Rogue_IsHardcore() ? ROGUE_ITEMS_HARDCORE : 0;
+    u8 flags = Rogue_RuleOn(RULE_NO_ITEMS) ? ROGUE_ITEMS_HARDCORE : 0;
     RogueGen_SpecialtyStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sSpecialtyStock, ARRAY_COUNT(sSpecialtyStock), flags);
     // Under the Hardcore rules the battle counter sells berries instead.
     if (shop == RSHOP_BATTLE && flags)

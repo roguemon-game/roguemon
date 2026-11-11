@@ -187,6 +187,17 @@ bool32 Rogue_IsFossilTown(u32 place);
 void Rogue_CheckFossilTown(void);
 // HARDCORE RULES: this run plays by them, and the current level cap.
 bool32 Rogue_IsHardcore(void);
+// Casual mode: one RULES row (RULE_*) is on for this run. The
+// HARDCORE preset's own flag turns on rows 5 to 7, so a Hardcore run saved
+// before v1.2 plays on as it did.
+bool32 Rogue_RuleOn(u32 rule);
+// The rules for a run starting now (RULE_* bits): the next-run pick, NUZLOCKE
+// for the DAILY REGION. Sets the run flags.
+void Rogue_ApplyRunRules(u32 rules, bool32 hardcore);
+// A preset's rows (RULE_* bits); ROGUE_PRESET_CUSTOM and unknown give NUZLOCKE's.
+u32 Rogue_PresetRules(u32 preset);
+// The preset whose rows these are, or ROGUE_PRESET_CUSTOM.
+u32 Rogue_RulesPreset(u32 rules);
 u32 Rogue_GetLevelCap(void);
 void Rogue_BufferCapBossName(u8 *dest);
 // RARE FINDS: the professor's hint about where the rare find lives, into
@@ -400,12 +411,19 @@ struct RogueRecord
     u16 lastDexSpecies;   // the last POKEDEX PICK (114)
     u8 caught[ROGUE_DEX_BYTES];      // first forms caught across runs, a bit per national dex number (116)
     u8 caughtShiny[ROGUE_DEX_BYTES]; // the same, caught shiny (246)
+    // Added in v1.2 for casual mode. A record from before has no
+    // ext3Magic, and Rogue_GetRecord picks NUZLOCKE, or HARDCORE if its
+    // HARDCORE RULES row was on.
+    u16 ext3Magic;        // ROGUE_RECORD_EXT3_MAGIC once set up (offset 376)
+    u8 rulesPreset;       // the RULES pick for the next run: ROGUE_PRESET_*, or ROGUE_PRESET_CUSTOM (378)
+    u8 rulesBits;         // its rows, RULE_* bits (379)
 };
 
 #define ROGUE_LAST_DUNGEON 0x80
 #define ROGUE_RECORD_MAGIC 0x524F4755 // "ROGU"
 #define ROGUE_RECORD_EXT_MAGIC 0x4C47 // "GL"
 #define ROGUE_RECORD_EXT2_MAGIC 0x5453 // "ST"
+#define ROGUE_RECORD_EXT3_MAGIC 0x4C52 // "RL"
 
 struct RogueRecord *Rogue_GetRecord(void);
 // Earned and switched on in the UNLOCKS menu.
@@ -507,6 +525,8 @@ void Rogue_CheckFallenMessage(void);
 void Rogue_Run0FallenNow(void);
 // Ends the run after the whole party has fainted.
 void Rogue_LoseRun(void);
+// Casual mode's BACK TO A CENTER x3: TRUE if this wipe is rescued.
+bool32 Rogue_TryRescue(void);
 // Carries the permanent record across a new game. The stash lives on the
 // caller's stack.
 struct RogueRecordStash
@@ -557,6 +577,9 @@ void CB2_RogueFlyMap(void);
 void CB2_RogueRunSummary(void);
 // The UNLOCKS screen from the main menu. Returns to the main menu.
 void CB2_RogueUnlocks(void);
+// Casual mode's RULES screen after NEW RUN, and its way back (src/main_menu.c).
+void CB2_RogueRules(void);
+void MainMenu_ReturnFromRules(bool32 go);
 
 // RUN 0 (v1.0): the Director, the run kind, the run log.
 #include "rogue_run0.h"

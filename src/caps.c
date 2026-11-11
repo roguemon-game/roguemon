@@ -24,7 +24,7 @@ u32 GetCurrentLevelCap(void)
     u32 i;
 
     // roguemon: Hardcore rules cap levels at the next leader's ace.
-    if (Rogue_IsHardcore())
+    if (Rogue_RuleOn(RULE_LEVEL_CAP))
         return Rogue_GetLevelCap();
     if (B_LEVEL_CAP_TYPE == LEVEL_CAP_FLAG_LIST)
     {

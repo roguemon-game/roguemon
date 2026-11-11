@@ -534,7 +534,7 @@ static EWRAM_DATA u16 sPoolCount = 0;
 static EWRAM_DATA u8 sRegionMix = 0;
 static EWRAM_DATA u8 sHasPreEvo[(NUM_SPECIES + 7) / 8] = {0};
 // Name of each generated trainer, as an index into the male or female list.
-static EWRAM_DATA u8 sTrainerNames[ROGUE_SLOT_LEADER_0] = {0};
+static IWRAM_DATA u8 sTrainerNames[ROGUE_SLOT_LEADER_0] = {0}; // IWRAM: EWRAM is full
 
 // Engine structures for every place. Layout sizes and connections are always
 // valid. The blocks and events live in a cache slot while the place is loaded
@@ -618,9 +618,9 @@ EWRAM_DATA u16 gRogueTestTrainer = 0;
 // in normal play.
 IWRAM_DATA u16 gRogueTestParty[PARTY_SIZE][3] = {0}; // (EWRAM is full)
 
-static EWRAM_DATA struct Trainer sTrainer = {0};
-static EWRAM_DATA struct TrainerMon sTrainerParty[PARTY_SIZE] = {0};
-static EWRAM_DATA u16 sTrainerCachedId = 0;
+static IWRAM_DATA struct Trainer sTrainer = {0}; // these three in IWRAM: EWRAM is full
+static IWRAM_DATA struct TrainerMon sTrainerParty[PARTY_SIZE] = {0};
+static IWRAM_DATA u16 sTrainerCachedId = 0;
 static void Run0TestCopy(void); // src/rogue_run0_trainers.h
 static void Run0TestCatch(void);
 static void Run0TestParty(void);
@@ -683,10 +683,30 @@ bool32 Rogue_RunCode(u8 *dest)
     return TRUE;
 }
 
+// Theme words (FIRE, OCEAN, GHOST...): each gives a new region every time,
+// one of those that lean its way (tools/roguemon/theme_table.py), never the
+// one just shown. The region's own name, shown as usual, brings it back.
+#include "data/rogue_theme_words.h"
+static EWRAM_DATA u16 sPendingSeed = 0; // (see Rogue_PrepareNewRegion)
+static s32 ThemeWordSeed(const char *word)
+{
+    u32 i, k, tries = 0;
+    for (i = 0; i < ARRAY_COUNT(sThemeWords); i++)
+    {
+        if (strcmp(word, sThemeWords[i].word) != 0)
+            continue;
+        do
+            k = sThemeSeeds[sThemeWords[i].list][(Random32() ^ gMain.vblankCounter1) % ROGUE_THEME_PER_WORD];
+        while (sPendingSeed == k + 1 && ++tries < 8);
+        return k;
+    }
+    return -1;
+}
+
 // The seed for a typed name. A region's name leads to that region, a run
 // code to its region and sets *mix to its POKeDEX mix (ROGUE_MIX_COUNT for
 // a plain name: the player's own choice). Any other word leads somewhere
-// too, always the same place.
+// too, always the same place, but a theme word (above) a new one each time.
 static u32 CodeToSeed(const u8 *code, u32 *mix)
 {
     char ascii[ROGUE_RUN_CODE_LEN + 2];
@@ -705,6 +725,9 @@ static u32 CodeToSeed(const u8 *code, u32 *mix)
     }
     ascii[i] = 0;
     seed = RogueGen_ParseRegionName(ascii);
+    if (seed >= 0)
+        return seed;
+    seed = ThemeWordSeed(ascii);
     if (seed >= 0)
         return seed;
     // A run code: the name, the mix's letter, and between them a dash, a
@@ -6597,7 +6620,7 @@ static void WarpToStart(void)
 // game starts and used by Rogue_NewGame. Once the run starts it moves to
 // sDescribedSeed, so the professor does not describe it twice. Both hold the
 // seed plus one, and 0 for none.
-static EWRAM_DATA u16 sPendingSeed = 0;
+// (sPendingSeed is defined above ThemeWordSeed.)
 static EWRAM_DATA u16 sDescribedSeed = 0;
 // A typed run code's POKeDEX mix for the pending region, plus one (0: the
 // choice in UNLOCKS).
@@ -6751,6 +6774,7 @@ void Rogue_PrepareEndlessRun(void)
 void Rogue_NewGame(void)
 {
     u32 seed, kind, mix = 0;
+    bool32 daily = Rogue_IsDailyRegion();
 
     // The DAILY REGION keeps the mix it was shown with (sPendingMix).
     sDailyDate[1] = 0;
@@ -6794,12 +6818,22 @@ void Rogue_NewGame(void)
     VarSet(VAR_ROGUE_E4, 0);
     VarSet(VAR_ROGUE_SEALS, 0);
     VarSet(VAR_ROGUE_RUN_STATE, ROGUE_RUN_ACTIVE);
-    // Hardcore rules are chosen in the UNLOCKS menu and hold for the run.
-    // RUN 0 has rules of its own.
-    if (Rogue_IsUnlockOn(UNLOCK_HARDCORE) && kind != ROGUE_RUN_KIND_RUN0)
+    // The rules are picked on the RULES screen (casual mode) and
+    // hold for the run. The DAILY REGION always plays NUZLOCKE, so everyone
+    // plays the same challenge; RUN 0 has rules of its own, and ENDLESS
+    // plays NUZLOCKE. HARDCORE needs its unlock (a CUSTOM pick of its rows
+    // doesn't).
     {
-        FlagSet(FLAG_ROGUE_HARDCORE);
-        gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SET;
+        struct RogueRecord *record = Rogue_GetRecord();
+        u32 rules = record->rulesBits & RULES_ALL;
+        bool32 hardcore = (record->rulesPreset == ROGUE_PRESET_HARDCORE);
+        if (daily || kind != ROGUE_RUN_KIND_NORMAL)
+            rules = RULES_PRESET_NUZLOCKE, hardcore = FALSE;
+        if (hardcore && !Rogue_IsUnlockEarned(UNLOCK_HARDCORE))
+            rules = RULES_PRESET_NUZLOCKE, hardcore = FALSE;
+        if (hardcore)
+            rules = RULES_PRESET_HARDCORE;
+        Rogue_ApplyRunRules(rules, hardcore);
     }
     // The professor's speech built this region to show it on his map
     // (Rogue_PrepareNewRegion): it is kept when the seed and the POKeDEX mix
@@ -8039,6 +8073,69 @@ bool32 Rogue_IsHardcore(void)
     return FlagGet(FLAG_ROGUE_HARDCORE);
 }
 
+// The run's RULES rows (casual mode), one flag each, in RULE_* order.
+static const u16 sRuleFlags[RULE_COUNT] = {
+    FLAG_ROGUE_RULE_ANY_CATCH,
+    FLAG_ROGUE_RULE_FAINT_STAY,
+    FLAG_ROGUE_RULE_REVIVES,
+    FLAG_ROGUE_RULE_RESCUES,
+    FLAG_ROGUE_RULE_NO_ITEMS,
+    FLAG_ROGUE_RULE_LEVEL_CAP,
+    FLAG_ROGUE_RULE_SET_STYLE,
+};
+
+bool32 Rogue_RuleOn(u32 rule)
+{
+    u32 i;
+    if ((rule & RULES_HARDCORE_ROWS) && FlagGet(FLAG_ROGUE_HARDCORE))
+        return TRUE;
+    for (i = 0; i < RULE_COUNT; i++)
+        if ((rule & (1u << i)) && FlagGet(sRuleFlags[i]))
+            return TRUE;
+    return FALSE;
+}
+
+static const u8 sPresetRules[ROGUE_PRESET_COUNT] = {
+    [ROGUE_PRESET_NUZLOCKE] = RULES_PRESET_NUZLOCKE,
+    [ROGUE_PRESET_EASY]     = RULES_PRESET_EASY,
+    [ROGUE_PRESET_ONE_LIFE] = RULES_PRESET_ONE_LIFE,
+    [ROGUE_PRESET_HARDCORE] = RULES_PRESET_HARDCORE,
+};
+
+u32 Rogue_PresetRules(u32 preset)
+{
+    return preset < ROGUE_PRESET_COUNT ? sPresetRules[preset] : RULES_PRESET_NUZLOCKE;
+}
+
+u32 Rogue_RulesPreset(u32 rules)
+{
+    u32 i;
+    for (i = 0; i < ROGUE_PRESET_COUNT; i++)
+        if (sPresetRules[i] == (rules & RULES_ALL))
+            return i;
+    return ROGUE_PRESET_CUSTOM;
+}
+
+void Rogue_ApplyRunRules(u32 rules, bool32 hardcore)
+{
+    u32 i;
+    for (i = 0; i < RULE_COUNT; i++)
+    {
+        if (rules & (1u << i))
+            FlagSet(sRuleFlags[i]);
+        else
+            FlagClear(sRuleFlags[i]);
+    }
+    FlagClear(FLAG_ROGUE_RESCUE_0);
+    FlagClear(FLAG_ROGUE_RESCUE_1);
+    if (hardcore)
+        FlagSet(FLAG_ROGUE_HARDCORE);
+    else
+        FlagClear(FLAG_ROGUE_HARDCORE);
+    if (rules & RULE_SET_STYLE)
+        gSaveBlock2Ptr->optionsBattleStyle = OPTIONS_BATTLE_STYLE_SET;
+}
+
 // The level cap: the next gym leader's ace, then each Elite Four member's
 // and the Champion's.
 u32 Rogue_GetLevelCap(void)
@@ -8351,7 +8448,7 @@ void Rogue_CheckFossilTown(void)
 // battle items with the Hardcore rules.
 static u8 ItemRules(void)
 {
-    return FlagGet(FLAG_ROGUE_HARDCORE) ? ROGUE_ITEMS_HARDCORE : 0;
+    return Rogue_RuleOn(RULE_NO_ITEMS) ? ROGUE_ITEMS_HARDCORE : 0;
 }
 
 // Sets up the item for the item ball the player is facing: VAR_0x8000 and

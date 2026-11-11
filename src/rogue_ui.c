@@ -892,8 +892,8 @@ static void BuildPlaceInfo(u8 *str, u32 place, u32 detail)
         str = Rogue_AppendDungeonNote(str, place, detail >= 2);
         if (!visited)
             StringCopy(str, sText_NotExplored);
-        else if (p->area == 0xFF)
-            ;
+        else if (p->area == 0xFF || Rogue_RuleOn(RULE_ANY_CATCH))
+            ; // Catching: ANYTHING (casual mode): no catch marks.
         else if (Rogue_IsAreaCaught(p->area))
             StringCopy(str, sText_Caught);
         else if (Rogue_IsAreaCatchUsed(p->area))
@@ -1710,6 +1710,8 @@ static void PrintSummaryBirch(void)
     AddTextPrinterParameterized(0, FONT_NORMAL, gStringVar4, 2, 17, GetPlayerTextSpeedDelay(), NULL);
 }
 
+static const u8 *RunRulesName(void);
+
 static void PrintSummaryRun(void)
 {
     const struct RogueRecord *record = Rogue_GetRecord();
@@ -1724,6 +1726,10 @@ static void PrintSummaryRun(void)
     // RUN 0 is not won by a CHAMPION ("You stopped." came first).
     AddTextPrinterParameterized(0, FONT_NORMAL, won ? (Rogue_IsRun0() ? sText_Run0Over : sText_RunWon) : sText_RunLost,
                                 2, y, TEXT_SKIP_DRAW, NULL);
+    // Casual mode: the run's rules, unless NUZLOCKE (today's game).
+    if (RunRulesName() != NULL)
+        AddTextPrinterParameterized(0, FONT_SMALL, RunRulesName(),
+                                    GetStringRightAlignXOffset(FONT_SMALL, RunRulesName(), 26 * 8) - 4, y + 2, TEXT_SKIP_DRAW, NULL);
     y += 18;
 
     // The run code a friend types to play this region, left in
@@ -2294,7 +2300,11 @@ static void PrintUnlockRow(struct UnlocksScreen *screen, u32 row, u32 index)
             AddTextPrinterParameterized3(UWIN_LIST, FONT_SMALL, 124 + i * 20, y + 2, sTextColor_Row, TEXT_SKIP_DRAW, sTypeShort[types[i]]);
         }
     }
-    if (Rogue_IsUnlockOn(unlock))
+    // HARDCORE is picked on the RULES screen now (casual mode): its row only
+    // shows it is earned.
+    if (unlock == UNLOCK_HARDCORE)
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 186, y, sTextColor_Done, TEXT_SKIP_DRAW, sText_Done);
+    else if (Rogue_IsUnlockOn(unlock))
         AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 196, y, sTextColor_On, TEXT_SKIP_DRAW, sText_On);
     else
         AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 196, y, sTextColor_Off, TEXT_SKIP_DRAW, sText_Off);
@@ -2622,7 +2632,7 @@ static void Task_UnlocksInput(u8 taskId)
         ShowUnlocksTab(screen, (screen->tab + 1) % TAB_COUNT);
         return;
     }
-    else if (JOY_NEW(A_BUTTON) && screen->tab == TAB_UNLOCKS && Rogue_IsUnlockEarned(unlock))
+    else if (JOY_NEW(A_BUTTON) && screen->tab == TAB_UNLOCKS && Rogue_IsUnlockEarned(unlock) && unlock != UNLOCK_HARDCORE)
     {
         PlaySE(SE_SELECT);
         if (unlock == UNLOCK_NATIONAL_DEX)
@@ -2676,6 +2686,313 @@ void CB2_RogueUnlocks(void)
     SetVBlankCallback(VBlankCB);
     EnableInterrupts(INTR_FLAG_VBLANK);
     SetWordTaskArg(CreateTask(Task_UnlocksInput, 0), tScreen, (u32)screen);
+    SetMainCallback2(CB2_RogueScreenMain);
+}
+
+// ---------------------------------------------------------------------------
+// RULES (casual mode): after NEW RUN, how the run plays. Four presets
+// on top, the seven rows under them; changing a row makes the pick CUSTOM.
+// It opens on the last pick, so a returning player presses A once. Its state
+// is allocated when it opens (no EWRAM of its own).
+
+#define RULES_PRESET_ROWS 4
+#define RULES_ROWS (RULES_PRESET_ROWS + RULE_COUNT)
+
+struct RulesScreen
+{
+    u8 cursor;
+    u8 arrowTask;
+    u8 preset;   // ROGUE_PRESET_* or ROGUE_PRESET_CUSTOM
+    u8 rules;    // RULE_* bits
+    u16 scroll;
+};
+
+// The presets in the screen's order: today's game first.
+static const u8 sRulesPresetOrder[RULES_PRESET_ROWS] = {
+    ROGUE_PRESET_NUZLOCKE, ROGUE_PRESET_EASY, ROGUE_PRESET_ONE_LIFE, ROGUE_PRESET_HARDCORE,
+};
+static const u8 *const sRulesPresetNames[ROGUE_PRESET_COUNT] = {
+    [ROGUE_PRESET_NUZLOCKE] = COMPOUND_STRING("NUZLOCKE"),
+    [ROGUE_PRESET_EASY]     = COMPOUND_STRING("EASY"),
+    [ROGUE_PRESET_ONE_LIFE] = COMPOUND_STRING("ONE LIFE"),
+    [ROGUE_PRESET_HARDCORE] = COMPOUND_STRING("HARDCORE"),
+};
+static const u8 *const sRulesPresetInfo[ROGUE_PRESET_COUNT] = {
+    [ROGUE_PRESET_NUZLOCKE] = COMPOUND_STRING("One catch per area.\nFainted POKéMON are gone."),
+    [ROGUE_PRESET_EASY]     = COMPOUND_STRING("Catch anything. Fainted POKéMON rest.\nREVIVES in MARTS. 3 rescues."),
+    [ROGUE_PRESET_ONE_LIFE] = COMPOUND_STRING("Catch anything. Fainted POKéMON rest.\nREVIVES in MARTS. One life."),
+    [ROGUE_PRESET_HARDCORE] = COMPOUND_STRING("NUZLOCKE plus level caps, no items\nagainst trainers, SET style."),
+};
+static const u8 *const sRuleNames[RULE_COUNT] = {
+    COMPOUND_STRING("CATCHING"), COMPOUND_STRING("FAINTED"), COMPOUND_STRING("REVIVES"),
+    COMPOUND_STRING("PARTY FAINTS"), COMPOUND_STRING("ITEMS IN BATTLE"), COMPOUND_STRING("LEVEL CAP"),
+    COMPOUND_STRING("BATTLE STYLE"),
+};
+// Each row's two values: off, then on.
+static const u8 *const sRuleValues[RULE_COUNT][2] = {
+    { COMPOUND_STRING("FIRST ENCOUNTER"), COMPOUND_STRING("ANYTHING") },
+    { COMPOUND_STRING("LOST"), COMPOUND_STRING("STAY") },
+    { COMPOUND_STRING("NO"), COMPOUND_STRING("IN MARTS") },
+    { COMPOUND_STRING("RUN OVER"), COMPOUND_STRING("CENTER x3") },
+    { COMPOUND_STRING("YES"), COMPOUND_STRING("NOT VS TRAINERS") },
+    { COMPOUND_STRING("NONE"), COMPOUND_STRING("HARD") },
+    { COMPOUND_STRING("CHOICE"), COMPOUND_STRING("SET") },
+};
+static const u8 *const sRuleInfo[RULE_COUNT] = {
+    COMPOUND_STRING("FIRST ENCOUNTER: one catch per area.\nANYTHING: catch every POKéMON you meet."),
+    COMPOUND_STRING("LOST: a fainted POKéMON leaves for good.\nSTAY: it rests until a CENTER or REVIVE."),
+    COMPOUND_STRING("IN MARTS: MARTS sell REVIVES, and\nMAX REVIVES later on."),
+    COMPOUND_STRING("CENTER x3: the first three times your\nteam falls, PROF. BIRCH brings you back."),
+    COMPOUND_STRING("NOT VS TRAINERS: no items from the BAG\nin trainer battles."),
+    COMPOUND_STRING("HARD: no POKéMON levels past the next\nLEADER's ace."),
+    COMPOUND_STRING("SET: no switching after a foe faints."),
+};
+static const u8 sText_RulesLocked[] = _("??? Beat the CHAMPION");
+static const u8 sText_RulesCustom[] = _("CUSTOM");
+static const u8 sText_RulesHelp[] = _("A: play  {LEFT_ARROW}{RIGHT_ARROW}: change  B: back");
+
+static struct RulesScreen *GetRulesScreen(u8 taskId)
+{
+    return (struct RulesScreen *)GetWordTaskArg(taskId, tScreen);
+}
+
+// The rules of the run just played, by its flags: EASY, ONE LIFE, HARDCORE
+// or CUSTOM; NULL for NUZLOCKE.
+static const u8 *RunRulesName(void)
+{
+    u32 i, rules = 0, preset;
+    for (i = 0; i < RULE_COUNT; i++)
+        if (Rogue_RuleOn(1u << i))
+            rules |= 1u << i;
+    preset = Rogue_RulesPreset(rules);
+    if (preset == ROGUE_PRESET_HARDCORE && !Rogue_IsHardcore())
+        preset = ROGUE_PRESET_CUSTOM;
+    if (preset == ROGUE_PRESET_NUZLOCKE)
+        return NULL;
+    return preset < ROGUE_PRESET_COUNT ? sRulesPresetNames[preset] : sText_RulesCustom;
+}
+
+static bool32 RulesPresetOpen(u32 preset)
+{
+    return preset != ROGUE_PRESET_HARDCORE || Rogue_IsUnlockEarned(UNLOCK_HARDCORE);
+}
+
+static void PrintRulesHeader(struct RulesScreen *screen)
+{
+    const u8 *label = screen->preset < ROGUE_PRESET_COUNT ? sRulesPresetNames[screen->preset] : sText_RulesCustom;
+    FillWindowPixelBuffer(UWIN_HEADER, PIXEL_FILL(0));
+    AddTextPrinterParameterized3(UWIN_HEADER, FONT_NORMAL, 2, 1, sTextColor_Header, TEXT_SKIP_DRAW,
+                                 COMPOUND_STRING("HOW DO YOU WANT TO PLAY?"));
+    AddTextPrinterParameterized3(UWIN_HEADER, FONT_NORMAL, GetStringRightAlignXOffset(FONT_NORMAL, label, 28 * 8) - 2, 1,
+                                 sTextColor_Header, TEXT_SKIP_DRAW, label);
+    PutWindowTilemap(UWIN_HEADER);
+    CopyWindowToVram(UWIN_HEADER, COPYWIN_FULL);
+}
+
+static void PrintRulesRow(struct RulesScreen *screen, u32 row, u32 index)
+{
+    u32 y = row * UNLOCK_ROW_HEIGHT;
+    if (index == screen->cursor)
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 0, y, sTextColor_Row, TEXT_SKIP_DRAW, gText_SelectorArrow3);
+    if (index < RULES_PRESET_ROWS)
+    {
+        u32 preset = sRulesPresetOrder[index];
+        if (!RulesPresetOpen(preset))
+        {
+            AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 10, y, sTextColor_RowDim, TEXT_SKIP_DRAW, sText_RulesLocked);
+            return;
+        }
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 10, y, preset == screen->preset ? sTextColor_On : sTextColor_Row,
+                                     TEXT_SKIP_DRAW, sRulesPresetNames[preset]);
+        if (preset == screen->preset)
+            AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 186, y, sTextColor_On, TEXT_SKIP_DRAW, sText_On);
+    }
+    else
+    {
+        u32 rule = index - RULES_PRESET_ROWS;
+        const u8 *value = sRuleValues[rule][(screen->rules >> rule) & 1];
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 10, y, sTextColor_Row, TEXT_SKIP_DRAW, sRuleNames[rule]);
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NARROW, GetStringRightAlignXOffset(FONT_NARROW, value, 28 * 8) - 6, y,
+                                     (screen->rules >> rule) & 1 ? sTextColor_On : sTextColor_Row, TEXT_SKIP_DRAW, value);
+    }
+}
+
+static void PrintRulesList(struct RulesScreen *screen)
+{
+    u32 row;
+    FillWindowPixelBuffer(UWIN_LIST, PIXEL_FILL(1));
+    for (row = 0; row < UNLOCK_ROWS && screen->scroll + row < RULES_ROWS; row++)
+        PrintRulesRow(screen, row, screen->scroll + row);
+    PutWindowTilemap(UWIN_LIST);
+    CopyWindowToVram(UWIN_LIST, COPYWIN_GFX);
+}
+
+static void PrintRulesInfo(struct RulesScreen *screen)
+{
+    const u8 *info;
+    FillWindowPixelBuffer(UWIN_INFO, PIXEL_FILL(1));
+    if (screen->cursor < RULES_PRESET_ROWS)
+    {
+        u32 preset = sRulesPresetOrder[screen->cursor];
+        info = RulesPresetOpen(preset) ? sRulesPresetInfo[preset]
+             : COMPOUND_STRING("Become CHAMPION to open HARDCORE.");
+    }
+    else
+    {
+        info = sRuleInfo[screen->cursor - RULES_PRESET_ROWS];
+    }
+    AddTextPrinterParameterized(UWIN_INFO, FONT_NORMAL, info, 2, 1, TEXT_SKIP_DRAW, NULL);
+    PutWindowTilemap(UWIN_INFO);
+    CopyWindowToVram(UWIN_INFO, COPYWIN_GFX);
+}
+
+static void RulesChanged(struct RulesScreen *screen)
+{
+    screen->preset = Rogue_RulesPreset(screen->rules);
+    // HARDCORE's rows without the CHAMPION are a CUSTOM pick, not HARDCORE.
+    if (!RulesPresetOpen(screen->preset))
+        screen->preset = ROGUE_PRESET_CUSTOM;
+    PrintRulesHeader(screen);
+    PrintRulesList(screen);
+}
+
+static void Task_RulesExit(u8 taskId)
+{
+    struct RulesScreen *screen = GetRulesScreen(taskId);
+    bool32 go = gTasks[taskId].data[2];
+    if (gPaletteFade.active)
+        return;
+    RemoveScrollIndicatorArrowPair(screen->arrowTask);
+    if (go)
+    {
+        struct RogueRecord *record = Rogue_GetRecord();
+        if (record->rulesPreset != screen->preset || record->rulesBits != screen->rules)
+        {
+            record->rulesPreset = screen->preset;
+            record->rulesBits = screen->rules;
+            // Kept by saving now only when a game is saved already. On a
+            // brand-new file a save here would write a half-made game that
+            // shows CONTINUE RUN and hangs; the new run's
+            // first save keeps the pick instead.
+            if (gSaveFileStatus == SAVE_STATUS_OK)
+                TrySavingData(SAVE_NORMAL);
+        }
+    }
+    Free(screen);
+    FreeAllWindowBuffers();
+    DestroyTask(taskId);
+    MainMenu_ReturnFromRules(go);
+}
+
+static void Task_RulesInput(u8 taskId)
+{
+    struct RulesScreen *screen = GetRulesScreen(taskId);
+    bool32 moved = FALSE;
+
+    if (gPaletteFade.active)
+        return;
+    if (JOY_REPEAT(DPAD_UP) && screen->cursor > 0)
+    {
+        screen->cursor--;
+        moved = TRUE;
+    }
+    else if (JOY_REPEAT(DPAD_DOWN) && screen->cursor + 1 < RULES_ROWS)
+    {
+        screen->cursor++;
+        moved = TRUE;
+    }
+    else if (screen->cursor >= RULES_PRESET_ROWS && JOY_NEW(DPAD_LEFT | DPAD_RIGHT | A_BUTTON))
+    {
+        PlaySE(SE_SELECT);
+        screen->rules ^= 1 << (screen->cursor - RULES_PRESET_ROWS);
+        RulesChanged(screen);
+        return;
+    }
+    else if (screen->cursor < RULES_PRESET_ROWS && JOY_NEW(DPAD_LEFT | DPAD_RIGHT))
+    {
+        u32 preset = sRulesPresetOrder[screen->cursor];
+        if (!RulesPresetOpen(preset))
+        {
+            PlaySE(SE_FAILURE);
+            return;
+        }
+        PlaySE(SE_SELECT);
+        screen->rules = Rogue_PresetRules(preset);
+        RulesChanged(screen);
+        return;
+    }
+    else if (JOY_NEW(A_BUTTON | START_BUTTON))
+    {
+        // A on a preset picks it and plays; START plays the pick as it is.
+        if (JOY_NEW(A_BUTTON))
+        {
+            u32 preset = sRulesPresetOrder[screen->cursor];
+            if (!RulesPresetOpen(preset))
+            {
+                PlaySE(SE_FAILURE);
+                return;
+            }
+            screen->rules = Rogue_PresetRules(preset);
+            screen->preset = preset;
+        }
+        PlaySE(SE_SELECT);
+        gTasks[taskId].data[2] = TRUE;
+        BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
+        gTasks[taskId].func = Task_RulesExit;
+        return;
+    }
+    else if (JOY_NEW(B_BUTTON))
+    {
+        PlaySE(SE_SELECT);
+        gTasks[taskId].data[2] = FALSE;
+        BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
+        gTasks[taskId].func = Task_RulesExit;
+        return;
+    }
+    if (moved)
+    {
+        PlaySE(SE_SELECT);
+        if (screen->cursor < screen->scroll)
+            screen->scroll = screen->cursor;
+        else if (screen->cursor >= screen->scroll + UNLOCK_ROWS)
+            screen->scroll = screen->cursor - UNLOCK_ROWS + 1;
+        PrintRulesList(screen);
+        PrintRulesInfo(screen);
+    }
+}
+
+void CB2_RogueRules(void)
+{
+    struct RulesScreen *screen;
+    struct RogueRecord *record = Rogue_GetRecord();
+    u32 x, y, i;
+
+    InitScreen(sSummaryBgTemplates, ARRAY_COUNT(sSummaryBgTemplates), sUnlockWindows);
+    CpuCopy16(sSummaryTiles, (void *)BG_CHAR_ADDR(TILE_CHAR_BASE), sizeof(sSummaryTiles));
+    LoadPalette(sSummaryPalette, BG_PLTT_ID(0), PLTT_SIZE_4BPP);
+    for (y = 0; y < 32; y++)
+        for (x = 0; x < 32; x++)
+            PutTile(BG_LAND, x, y, SUMMARY_TILE_DARK);
+    screen = AllocZeroed(sizeof(*screen));
+    // The last pick; HARDCORE only once it is earned.
+    screen->rules = record->rulesBits & RULES_ALL;
+    RulesChanged(screen);
+    for (i = 0; i < RULES_PRESET_ROWS; i++)
+        if (sRulesPresetOrder[i] == screen->preset)
+            screen->cursor = i;
+    if (screen->preset == ROGUE_PRESET_CUSTOM)
+        screen->cursor = RULES_PRESET_ROWS;
+    DrawStdFrameWithCustomTileAndPalette(UWIN_LIST, FALSE, 2, 14);
+    DrawStdFrameWithCustomTileAndPalette(UWIN_INFO, FALSE, 2, 14);
+    PrintRulesHeader(screen);
+    PrintRulesList(screen);
+    PrintRulesInfo(screen);
+    screen->arrowTask = AddScrollIndicatorArrowPairParameterized(SCROLL_ARROW_UP, 120, 20, 108, RULES_ROWS - UNLOCK_ROWS,
+                                                                 TAG_UNLOCK_ARROWS, TAG_UNLOCK_ARROWS, &screen->scroll);
+    BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
+    SetVBlankCallback(VBlankCB);
+    EnableInterrupts(INTR_FLAG_VBLANK);
+    SetWordTaskArg(CreateTask(Task_RulesInput, 0), tScreen, (u32)screen);
     SetMainCallback2(CB2_RogueScreenMain);
 }
 
