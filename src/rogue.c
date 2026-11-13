@@ -4655,9 +4655,51 @@ static u16 LeaderFavorite(const struct LeaderDef *leader, u32 *rng, u32 slot, u3
     return fits[RogueRng_Range(rng, n)];
 }
 
+// A leader's team keeps to its type's look: one starter line at most (a
+// Fire gym of Charizard, Blaziken and Infernape reads as three stolen
+// starters), and a Normal gym has no Normal/Flying birds, or it plays as a
+// Flying gym (Discord suggestion, Nov 11).
+// Is a species any stage of a starter's line (Charmander, Charmeleon or
+// Charizard)? IsStarterLine knows the first forms only.
+static bool32 InStarterLine(u16 species)
+{
+    u32 i, j, k, m;
+    for (i = 0; i < 3; i++)
+    {
+        for (j = 0; j < ARRAY_COUNT(sStarters[0]); j++)
+        {
+            u16 stage[3] = { sStarters[i][j], SPECIES_NONE, SPECIES_NONE };
+            for (k = 0; k < 3 && stage[k] != SPECIES_NONE; k++)
+            {
+                const struct Evolution *evos = GetSpeciesEvolutions(stage[k]);
+                if (stage[k] == species)
+                    return TRUE;
+                for (m = 0; k + 1 < 3 && evos != NULL && evos[m].method != EVOLUTIONS_END; m++)
+                {
+                    if (evos[m].targetSpecies == species)
+                        return TRUE;
+                    if (evos[m].targetSpecies < NUM_SPECIES)
+                        stage[k + 1] = evos[m].targetSpecies;
+                }
+            }
+        }
+    }
+    return FALSE;
+}
+
+static bool32 LeaderPickOk(const struct LeaderDef *leader, u16 picked, u16 evolved, bool32 starterTaken)
+{
+    if (starterTaken && (InStarterLine(picked) || InStarterLine(evolved)))
+        return FALSE;
+    if (leader->type == TYPE_NORMAL && (SpeciesHasType(picked, TYPE_FLYING) || SpeciesHasType(evolved, TYPE_FLYING)))
+        return FALSE;
+    return TRUE;
+}
+
 static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, u32 ace, u32 maxBst, bool32 anyMethod, u32 iv)
 {
     u32 i;
+    bool32 starterTaken = FALSE;
     for (i = 0; i < size; i++)
     {
         // The ace stands out, most of all in the early gyms: Roxanne's
@@ -4666,16 +4708,166 @@ static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, 
         u32 tries = 0;
         u16 species = (i == size - 1) ? SignatureAce(leader, level, maxBst)
                                       : LeaderFavorite(leader, rng, i, level, maxBst, anyMethod);
-        if (species != SPECIES_NONE && !PartyHasSpecies(i, species))
+        u16 picked;
+        if (species != SPECIES_NONE && !PartyHasSpecies(i, species)
+         && LeaderPickOk(leader, species, species, starterTaken))
         {
             // The ace's stage is already chosen: no further evolution.
             SetPartyMon(i, species, level, iv, i != size - 1 && anyMethod);
+            starterTaken |= InStarterLine(species);
             continue;
         }
         do
         {
-            SetPartyMon(i, PickSpecies(rng, leader->type, 250, maxBst), level, iv, anyMethod || i == size - 1);
-        } while (++tries < 30 && PartyHasSpecies(i, sTrainerParty[i].species));
+            picked = PickSpecies(rng, leader->type, 250, maxBst);
+            SetPartyMon(i, picked, level, iv, anyMethod || i == size - 1);
+        } while (++tries < 30 && (PartyHasSpecies(i, sTrainerParty[i].species)
+                                  || !LeaderPickOk(leader, picked, sTrainerParty[i].species, starterTaken)));
+        starterTaken |= InStarterLine(picked) || InStarterLine(sTrainerParty[i].species);
+    }
+}
+
+// Answers to the leader's own weaknesses (Discord suggestion, Nov 11), as
+// the tougher leaders in the games carry them: a Fire leader's Solar Beam
+// for the Water, Ground and Rock types that beat Fire, a Flying gym's
+// Ground move for Electric types. Per attacking type, a move at the
+// middle gyms' strength and a stronger one from level 35.
+static const u16 sAnswerMoves[NUMBER_OF_MON_TYPES][2] =
+{
+    [TYPE_FIGHTING] = { MOVE_LOW_SWEEP,      MOVE_BRICK_BREAK },
+    [TYPE_FLYING]   = { MOVE_AERIAL_ACE,     MOVE_AIR_SLASH },
+    [TYPE_POISON]   = { MOVE_VENOSHOCK,      MOVE_SLUDGE_BOMB },
+    [TYPE_GROUND]   = { MOVE_DIG,            MOVE_EARTHQUAKE },
+    [TYPE_ROCK]     = { MOVE_ROCK_TOMB,      MOVE_ROCK_SLIDE },
+    [TYPE_BUG]      = { MOVE_BUG_BITE,       MOVE_X_SCISSOR },
+    [TYPE_GHOST]    = { MOVE_SHADOW_CLAW,    MOVE_SHADOW_BALL },
+    [TYPE_STEEL]    = { MOVE_IRON_HEAD,      MOVE_FLASH_CANNON },
+    [TYPE_FIRE]     = { MOVE_FLAME_CHARGE,   MOVE_FLAMETHROWER },
+    [TYPE_WATER]    = { MOVE_WATER_PULSE,    MOVE_SURF },
+    [TYPE_GRASS]    = { MOVE_GIGA_DRAIN,     MOVE_SOLAR_BEAM },
+    [TYPE_ELECTRIC] = { MOVE_SHOCK_WAVE,     MOVE_THUNDERBOLT },
+    [TYPE_PSYCHIC]  = { MOVE_PSYSHOCK,       MOVE_PSYCHIC },
+    [TYPE_ICE]      = { MOVE_ICY_WIND,       MOVE_ICE_BEAM },
+    [TYPE_DRAGON]   = { MOVE_DRAGON_CLAW,    MOVE_DRAGON_PULSE },
+    [TYPE_DARK]     = { MOVE_SNARL,          MOVE_DARK_PULSE },
+    [TYPE_FAIRY]    = { MOVE_DRAINING_KISS,  MOVE_DAZZLING_GLEAM },
+};
+
+static bool32 TypeHitsHard(enum Type atk, enum Type def)
+{
+    return atk != TYPE_NONE && def != TYPE_NONE && GetTypeModifier(atk, def) >= UQ_4_12(2.0);
+}
+
+// The moves a trainer Pokemon left empty would get: the last four it
+// learned by level.
+static void FillLevelMoves(struct TrainerMon *mon)
+{
+    const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(mon->species);
+    u32 i, j, n = 0;
+    if (mon->moves[0] != MOVE_NONE)
+        return;
+    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END && learnset[i].level <= mon->lvl; i++)
+    {
+        bool32 dup = FALSE;
+        for (j = 0; j < n; j++)
+            if (mon->moves[j] == learnset[i].move)
+                dup = TRUE;
+        if (dup)
+            continue;
+        if (n == MAX_MON_MOVES)
+        {
+            for (j = 0; j < MAX_MON_MOVES - 1; j++)
+                mon->moves[j] = mon->moves[j + 1];
+            n--;
+        }
+        mon->moves[n++] = learnset[i].move;
+    }
+}
+
+// Over a free slot, else the weakest attack not of its own types, else its
+// weakest attack; the one status move stays.
+static void TeachAnswer(struct TrainerMon *mon, u16 move)
+{
+    u32 i, slot = MAX_MON_MOVES, pass;
+    FillLevelMoves(mon);
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        if (mon->moves[i] == move)
+            return;
+        if (mon->moves[i] == MOVE_NONE && slot == MAX_MON_MOVES)
+            slot = i;
+    }
+    for (pass = 0; pass < 2 && slot == MAX_MON_MOVES; pass++)
+    {
+        for (i = 0; i < MAX_MON_MOVES; i++)
+        {
+            enum Move m = mon->moves[i];
+            if (GetMoveCategory(m) == DAMAGE_CATEGORY_STATUS)
+                continue;
+            if (pass == 0 && SpeciesHasType(mon->species, GetMoveType(m)))
+                continue;
+            if (slot == MAX_MON_MOVES || GetMovePower(m) < GetMovePower(mon->moves[slot]))
+                slot = i;
+        }
+    }
+    if (slot == MAX_MON_MOVES)
+        slot = MAX_MON_MOVES - 1;
+    mon->moves[slot] = move;
+}
+
+// Up to two of the team learn a move that hits one of the types that beat
+// the leader's type hard, where the team has no such answer in its own
+// types; the ace last, so it keeps its own moves where it can. Pokemon
+// under level 20 keep Roxanne-style early moves.
+static void GiveLeaderAnswers(u32 size, enum Type type)
+{
+    u32 w, a, i, given = 0;
+    bool32 used[PARTY_SIZE] = {0};
+    if (type == TYPE_NONE || type >= NUMBER_OF_MON_TYPES)
+        return;
+    for (w = 1; w < NUMBER_OF_MON_TYPES && given < 2; w++)
+    {
+        bool32 answered = FALSE;
+        if (w == TYPE_MYSTERY || w == TYPE_STELLAR || !TypeHitsHard(w, type))
+            continue;
+        for (i = 0; i < size && !answered; i++)
+            for (a = 0; a < 2; a++)
+                if (TypeHitsHard(GetSpeciesType(sTrainerParty[i].species, a), w))
+                    answered = TRUE;
+        for (i = 0; i < size && !answered; i++)
+        {
+            u32 j;
+            for (j = 0; j < MAX_MON_MOVES; j++)
+                if (sTrainerParty[i].moves[j] != MOVE_NONE && TypeHitsHard(GetMoveType(sTrainerParty[i].moves[j]), w))
+                    answered = TRUE;
+        }
+        if (answered)
+            continue;
+        for (i = 0; i < size && !answered; i++)
+        {
+            // The ace (the last slot) is asked last.
+            u32 slot = i;
+            struct TrainerMon *mon = &sTrainerParty[slot];
+            if (used[slot] || mon->lvl < 20)
+                continue;
+            for (a = 1; a < NUMBER_OF_MON_TYPES && !answered; a++)
+            {
+                u32 k;
+                if (!TypeHitsHard(a, w))
+                    continue;
+                for (k = (mon->lvl >= 35) ? 2 : 1; k-- > 0 && !answered;)
+                {
+                    u16 move = sAnswerMoves[a][k];
+                    if (move != MOVE_NONE && CanLearnTeachableMove(mon->species, move))
+                    {
+                        TeachAnswer(mon, move);
+                        used[slot] = TRUE;
+                        answered = TRUE;
+                        given++;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -5078,6 +5270,7 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
         const struct LeaderDef *leader = &sLeaders[sE4[member]];
         size = 5;
         BuildLeaderTeam(leader, &rng, size, sRegion.e4Level[member], 500, TRUE, 24);
+        GiveLeaderAnswers(size, leader->type);
         sTrainerParty[size - 1].heldItem = ITEM_SITRUS_BERRY;
         sTrainer.items[0] = ITEM_FULL_RESTORE;
         sTrainer.items[1] = ITEM_HYPER_POTION;
@@ -5111,6 +5304,8 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
         if (step == 0 && !(gRogueTestLeader[0] && (gRogueTestLeader[3] & 8)))
             TameFirstLeader(size, leader->type, (gRogueTestLeader[0] && (gRogueTestLeader[3] & 16)) ? ITEM_NONE
                                                 : RogueGen_GymTM(&sRegion, gym, leader->type));
+        else
+            GiveLeaderAnswers(size, leader->type);
         sTrainerParty[size - 1].heldItem = (step == 0) ? ITEM_ORAN_BERRY : ITEM_SITRUS_BERRY;
         sTrainer.items[0] = (step == 0) ? ITEM_POTION : (step < 5 ? ITEM_SUPER_POTION : ITEM_HYPER_POTION);
         if (step >= 3)

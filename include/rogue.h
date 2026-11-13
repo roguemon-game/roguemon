@@ -261,7 +261,7 @@ u32 RogueDungeon_WildRate(u32 dungeon, u32 floor);
 u16 RogueDungeon_BossSpecies(u32 dungeon);
 const struct RogueMasterDef *RogueDungeon_MasterDef(u32 dungeon);
 u32 RogueDungeon_MasterLevel(u32 dungeon);
-// A master's line (RMASTER_INTRO, _DEFEAT, _AFTER) into dest, in the game's characters.
+// A master's line (RMASTER_INTRO, _DEFEAT, _AFTER) into dest, in the game's characters; returns dest.
 u8 *Rogue_BufferMasterLine(u32 dungeon, u32 field, u8 *dest, u32 size);
 // A dungeon item ball's own item (the prize, a choice room's, a kind's find),
 // or ITEM_NONE for the floor's ordinary finds.

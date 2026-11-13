@@ -3882,6 +3882,30 @@ static bool8 GroveByOpen(struct Gen *gen, int x, int y)
     return FALSE;
 }
 
+// (v1.1 joins) Does the hills' tree at unit (x, y) stay a tree of a grove?
+static bool8 GroveTreeU(struct Gen *gen, int x, int y)
+{
+    return InBounds(gen, x, y) && Cell(gen, x, y) == C_TREE && !IsEdge(gen, x, y)
+        && RogueRng_Hash(gen->rng ^ 0x5A5A, (y / 3) * 64 + x / 3) % 100 < gen->rockTreeChance
+        && GroveByOpen(gen, x, y);
+}
+
+// A grove's tree with no open ground and no tree beside it would stand on
+// its own square of grass, rock all round it: it goes to rock too.
+static bool8 GroveTreeAlone(struct Gen *gen, int x, int y)
+{
+    u8 q;
+    for (q = 0; q < 4; q++)
+    {
+        int nx = x + sDirDX[q], ny = y + sDirDY[q];
+        u8 n = Cell(gen, nx, ny);
+        if (IsOpenU(n) || GroveTreeU(gen, nx, ny)
+         || (n == C_TREE && (InEdgeBand(gen, nx, ny) || PlateauSkirtU(gen, nx, ny))))
+            return FALSE;
+    }
+    return TRUE;
+}
+
 static void RenderMountain(struct Gen *gen)
 {
     u8 level[MAX_CELLS], grass[(MAX_CELLS + 7) / 8];
@@ -3902,9 +3926,7 @@ static void RenderMountain(struct Gen *gen)
             // Hills keep groves of trees among the rock.
             // (v1.1 joins: only a grove beside open ground; one deep in
             // the rock stood in a walled pit, rings of rock round it.)
-            if (c == C_TREE && gen->rockTreeChance && !IsEdge(gen, ux, uy)
-             && RogueRng_Hash(gen->rng ^ 0x5A5A, (uy / 3) * 64 + ux / 3) % 100 < gen->rockTreeChance
-             && GroveByOpen(gen, ux, uy))
+            if (c == C_TREE && gen->rockTreeChance && GroveTreeU(gen, ux, uy) && !GroveTreeAlone(gen, ux, uy))
                 c = C_OPEN;
             // Hills keep the trees along an edge that meets green country,
             // so the forest there runs on across the seam instead of a
@@ -13173,6 +13195,90 @@ static void DropPathScraps(struct Gen *gen)
     }
 }
 
+// How many of a unit's four neighbours are open ground (a way on).
+static int OpenWaysU(struct Gen *gen, int x, int y)
+{
+    int n = 0;
+    u8 d;
+    for (d = 0; d < 4; d++)
+        n += IsOpenU(Cell(gen, x + sDirDX[d], y + sDirDY[d]));
+    return n;
+}
+
+// Does a lane's unit lead somewhere: a map exit, an item's pocket, a door
+// or cave mouth (a warp), or the front of a building or scenery?
+static bool8 LaneLeadsU(struct Gen *gen, int x, int y)
+{
+    int i;
+    if (IsEdge(gen, x, y) || HasNeighbor(gen, x, y, C_BLDG, TRUE) || HasNeighbor(gen, x, y, C_DECOR, FALSE))
+        return TRUE;
+    // A path to water leads on by Surf (a lake route's guarded exit, a
+    // river bank where the surfing starts).
+    if (HasNeighbor(gen, x, y, C_WATER, TRUE) || HasNeighbor(gen, x, y, C_SEA, TRUE)
+     || HasNeighbor(gen, x, y, C_SHORE, TRUE) || HasNeighbor(gen, x, y, C_FORD, TRUE))
+        return TRUE;
+    for (i = 0; i < gen->nPockets; i++)
+        if (Abs(gen->pocketX[i] - x) + Abs(gen->pocketY[i] - y) <= 1)
+            return TRUE;
+    for (i = 0; i < gen->m->nWarps; i++)
+        if (Abs((gen->m->warps[i].x >> 1) - x) + Abs((gen->m->warps[i].y >> 1) - y) <= 2)
+            return TRUE;
+    return FALSE;
+}
+
+// Is a route's unit the shut end of a lane: open, one way on, and leading
+// nowhere?
+static bool8 ShutLaneEndU(struct Gen *gen, int x, int y)
+{
+    return IsOpenU(Cell(gen, x, y)) && OpenWaysU(gen, x, y) == 1 && !LaneLeadsU(gen, x, y);
+}
+
+// A sand road or pale path painted into a lane whose far end is shut (rock,
+// trees) runs on and stops dead there, leading nowhere. Before the paths are
+// tidied: the cover of a shut lane, from its end back up to 4 units to where
+// it meets more open ground, goes back to grass (TidyPathBlocks then drops
+// any block left without its 2x2 square).
+#define SHUT_LANE_MAX 4
+static void ClearShutLanes(struct Gen *gen)
+{
+    int ux, uy, k, q;
+    if (gen->p->kind != RPLACE_ROUTE)
+        return;
+    for (uy = 1; uy < gen->ch - 1; uy++)
+    {
+        YIELD();
+        for (ux = 1; ux < gen->cw - 1; ux++)
+        {
+            int x = ux, y = uy, px = -1, py = -1;
+            bool8 painted = FALSE;
+            for (q = 0; q < 4; q++)
+                painted |= IsPathCover(Cover(gen, x * 2 + (q & 1), y * 2 + (q >> 1)));
+            if (!painted || !ShutLaneEndU(gen, x, y))
+                continue;
+            for (k = 0; k < SHUT_LANE_MAX; k++)
+            {
+                u8 d;
+                int nx = x, ny = y;
+                for (q = 0; q < 4; q++)
+                    if (IsPathCover(Cover(gen, x * 2 + (q & 1), y * 2 + (q >> 1))))
+                        SetCover(gen, x * 2 + (q & 1), y * 2 + (q >> 1), V_NONE);
+                // On along the lane, while it is one unit of open ground
+                // between two shut sides (two ways: back and on).
+                for (d = 0; d < 4; d++)
+                {
+                    int tx = x + sDirDX[d], ty = y + sDirDY[d];
+                    if (IsOpenU(Cell(gen, tx, ty)) && !(tx == px && ty == py))
+                        nx = tx, ny = ty;
+                }
+                if ((nx == x && ny == y) || OpenWaysU(gen, nx, ny) != 2 || LaneLeadsU(gen, nx, ny))
+                    break;
+                px = x, py = y;
+                x = nx, y = ny;
+            }
+        }
+    }
+}
+
 // Tall grass where Hoenn never has it against a way: left of the pale
 // path's or the sand's left edge, above the sand's top corners and right of
 // its right corners.
@@ -13918,6 +14024,7 @@ static bool8 GenRoute(struct Gen *gen)
     MirageGround(gen, FALSE); // (v1.1 peaks)
     if (p->type == RROUTE_LONGGRASS)
         LandLongGrassFields(gen, nEnds, ex, ey);
+    ClearShutLanes(gen);
     TidyPaths(gen);
     if (!road)
         DropPathScraps(gen);

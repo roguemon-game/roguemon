@@ -1908,13 +1908,16 @@ void Rogue_PrepareMasterReward(void)
 }
 
 // A master's line (RMASTER_INTRO, _DEFEAT, _AFTER: src/rogue_text_dungeons.h)
-// into dest, in the game's characters.
+// into dest, in the game's characters. Returns dest, the line's start: the
+// battle setup shows what it gets (DungeonText returns the end, which made
+// every master's intro and defeat an empty box).
 u8 *Rogue_BufferMasterLine(u32 dungeon, u32 field, u8 *dest, u32 size)
 {
     struct RogueTextCtx c;
     struct RogueTextState st;
     DungeonCtx(&c, &st, dungeon, RSPK_TRAINER);
-    return DungeonText(dest, RogueText_MasterLine(&c, field, (char *)dest, size));
+    DungeonText(dest, RogueText_MasterLine(&c, field, (char *)dest, size));
+    return dest;
 }
 
 // Script special: what the master says once beaten, into gStringVar4.

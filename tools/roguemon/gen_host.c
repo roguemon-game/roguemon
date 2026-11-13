@@ -171,6 +171,42 @@ int main(int argc, char **argv)
         }
         return 0;
     }
+    if (argc > 2 && strcmp(argv[1], "--masters") == 0)
+    {
+        // A master's lines (intro, defeat, after) for every dungeon of each
+        // seed made every dungeon kind in turn, for mastertest.py (dungeon masters):
+        // gen_host --masters FIRST COUNT prints "master seed dungeon kind
+        // field length text".
+        u32 first = strtoul(argv[2], NULL, 0), n = argc > 3 ? strtoul(argv[3], NULL, 0) : 1, s;
+        for (s = first; s < first + n; s++)
+        {
+            RogueGen_BuildRegion(&sRegion, s);
+            for (i = 0; i < sRegion.nDungeons; i++)
+            {
+                u8 kind = sRegion.dungeons[i].kind;
+                for (j = 0; j < RDUN_COUNT; j++)
+                {
+                    u8 field;
+                    sRegion.dungeons[i].kind = j;
+                    for (field = RMASTER_INTRO; field <= RMASTER_AFTER; field++)
+                    {
+                        struct RogueTextCtx c;
+                        struct RogueTextState st = {0};
+                        char out[1000];
+                        u32 len;
+                        RogueText_Init(&c, &sRegion, sRegion.dungeons[i].host, RSPK_TRAINER);
+                        c.state = &st;
+                        c.dungeon = i;
+                        out[0] = 0;
+                        len = RogueText_MasterLine(&c, field, out, sizeof(out));
+                        printf("master %u %d %d %u %u %s\n", s, i, j, field, out[0] ? len : 0, out);
+                    }
+                }
+                sRegion.dungeons[i].kind = kind;
+            }
+        }
+        return 0;
+    }
     if (argc > 1 && strcmp(argv[1], "--roles") == 0)
     {
         // The item catalogue's roles, for item_tally.py.

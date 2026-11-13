@@ -348,7 +348,7 @@ static const u8 sFolkVoice[RTHEME_COUNT + 1][8] =
     [RTHEME_ASH]     = { VA, VO, VK, VK, VA, VK, VA, VA }, // hiker, old woman, camper, picnicker, man, little boy, fat man, woman
     [RTHEME_SPRING]  = { VO, VO, VA, VO, VA, VK, VA, VA }, // old woman, old man, woman, expert, black belt, little girl, man, beauty
     [RTHEME_TREETOP] = { VA, VK, VK, VO, VK, VK, VK, VA }, // man, girl, bug catcher, old woman, picnicker, boy, ninja boy, woman
-    [RTHEME_RAFT]    = { VA, VO, VK, VA, VA, VK, VO, VA }, // fisherman, old man, tuber, sailor, woman, little girl, old woman, swimmer
+    [RTHEME_RAFT]    = { VA, VO, VK, VA, VA, VK, VO, VA }, // fisherman, old man, tuber, sailor, woman, little girl, old woman, man
     [RTHEME_CRATER]  = { VA, VO, VK, VA, VO, VK, VA, VA }, // gentleman, old woman, boy, beauty, expert, lass, man, woman
     [RTHEME_COUNT]   = { VO, VO, VA, VA, VA, VA, VA, VA }, // the summit: experts, man, woman, black belt, hiker, gentleman, beauty
 };
@@ -356,7 +356,7 @@ static const u8 sFolkVoice[RTHEME_COUNT + 1][8] =
 static const u8 sLandFolkVoice[8] = { VA, VA, VK, VK, VO, VA, VA, VK };
 // The slots of sea folk (sailors, kids in swim rings) and of fishermen.
 static const u8 sFolkSeaSlots[RTHEME_COUNT + 1] = { [RTHEME_HARBOR] = 0x09, [RTHEME_ISLAND] = 0x01, [RTHEME_COVE] = 0x04, [RTHEME_BEACH] = 0x19,
-                                                   [RTHEME_RAFT] = 0x8D };
+                                                   [RTHEME_RAFT] = 0x0C };
 static const u8 sFolkFisherSlots[RTHEME_COUNT + 1] = { [RTHEME_HARBOR] = 0x02, [RTHEME_ISLAND] = 0x80, [RTHEME_BEACH] = 0x04,
                                                       [RTHEME_RAFT] = 0x01 };
 #undef VK
