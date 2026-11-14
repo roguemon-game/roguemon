@@ -4753,6 +4753,10 @@ static const u16 sAnswerMoves[NUMBER_OF_MON_TYPES][2] =
     [TYPE_FAIRY]    = { MOVE_DRAINING_KISS,  MOVE_DAZZLING_GLEAM },
 };
 
+// A leader's Pokemon of the gym's type knows an attack of the type this
+// strong (GiveLeaderTypeAttacks).
+#define TYPE_ATTACK_MIN_POWER 60
+
 static bool32 TypeHitsHard(enum Type atk, enum Type def)
 {
     return atk != TYPE_NONE && def != TYPE_NONE && GetTypeModifier(atk, def) >= UQ_4_12(2.0);
@@ -4784,9 +4788,10 @@ static void FillLevelMoves(struct TrainerMon *mon)
     }
 }
 
-// Over a free slot, else the weakest attack not of its own types, else its
-// weakest attack; the one status move stays.
-static void TeachAnswer(struct TrainerMon *mon, u16 move)
+// Over a free slot, else the weakest attack not of its own types, else the
+// weakest that is not a strong attack of the gym's type (keep), else its
+// last status move, else its weakest attack.
+static void TeachAnswer(struct TrainerMon *mon, u16 move, enum Type keep)
 {
     u32 i, slot = MAX_MON_MOVES, pass;
     FillLevelMoves(mon);
@@ -4797,14 +4802,22 @@ static void TeachAnswer(struct TrainerMon *mon, u16 move)
         if (mon->moves[i] == MOVE_NONE && slot == MAX_MON_MOVES)
             slot = i;
     }
-    for (pass = 0; pass < 2 && slot == MAX_MON_MOVES; pass++)
+    for (pass = 0; pass < 4 && slot == MAX_MON_MOVES; pass++)
     {
         for (i = 0; i < MAX_MON_MOVES; i++)
         {
             enum Move m = mon->moves[i];
+            if (pass == 2)
+            {
+                if (GetMoveCategory(m) == DAMAGE_CATEGORY_STATUS)
+                    slot = i;
+                continue;
+            }
             if (GetMoveCategory(m) == DAMAGE_CATEGORY_STATUS)
                 continue;
             if (pass == 0 && SpeciesHasType(mon->species, GetMoveType(m)))
+                continue;
+            if (pass == 1 && GetMoveType(m) == keep && GetMovePower(m) >= TYPE_ATTACK_MIN_POWER)
                 continue;
             if (slot == MAX_MON_MOVES || GetMovePower(m) < GetMovePower(mon->moves[slot]))
                 slot = i;
@@ -4813,6 +4826,108 @@ static void TeachAnswer(struct TrainerMon *mon, u16 move)
     if (slot == MAX_MON_MOVES)
         slot = MAX_MON_MOVES - 1;
     mon->moves[slot] = move;
+}
+
+// Attacks of the gym's own type, weakest first, for a leader's Pokemon that
+// knows none worth the name (Discord, Nov 12: a Fire gym that used one Fire
+// move). Each type's list runs from the early gyms' strength (Flame Wheel)
+// to the late ones' (Flamethrower); TypeAttackCap picks how far up a level
+// reaches. No Fly: a two-turn attack gives the player a free turn, so
+// Flying stops at Drill Peck (no two-turn Fly). Dig stays: Ground has nothing
+// else learnable between Bulldoze and Earthquake.
+#define TYPE_ATTACKS 5
+
+static const u16 sTypeAttacks[NUMBER_OF_MON_TYPES][TYPE_ATTACKS] =
+{
+    [TYPE_NORMAL]   = { MOVE_STOMP,         MOVE_HEADBUTT,      MOVE_FACADE,        MOVE_SLASH,         MOVE_BODY_SLAM },
+    [TYPE_FIGHTING] = { MOVE_LOW_SWEEP,     MOVE_BRICK_BREAK,   MOVE_DRAIN_PUNCH,   MOVE_SKY_UPPERCUT },
+    [TYPE_FLYING]   = { MOVE_WING_ATTACK,   MOVE_AERIAL_ACE,    MOVE_AIR_SLASH,     MOVE_DRILL_PECK },
+    [TYPE_POISON]   = { MOVE_SLUDGE,        MOVE_POISON_JAB,    MOVE_SLUDGE_BOMB },
+    [TYPE_GROUND]   = { MOVE_BULLDOZE,      MOVE_DIG,           MOVE_EARTHQUAKE },
+    [TYPE_ROCK]     = { MOVE_ROCK_TOMB,     MOVE_ROCK_SLIDE,    MOVE_POWER_GEM,     MOVE_STONE_EDGE },
+    [TYPE_BUG]      = { MOVE_BUG_BITE,      MOVE_SIGNAL_BEAM,   MOVE_X_SCISSOR,     MOVE_BUG_BUZZ },
+    [TYPE_GHOST]    = { MOVE_HEX,           MOVE_SHADOW_CLAW,   MOVE_SHADOW_BALL },
+    [TYPE_STEEL]    = { MOVE_STEEL_WING,    MOVE_IRON_HEAD,     MOVE_FLASH_CANNON },
+    [TYPE_FIRE]     = { MOVE_FLAME_WHEEL,   MOVE_FIRE_FANG,     MOVE_FIRE_PUNCH,    MOVE_LAVA_PLUME,    MOVE_FLAMETHROWER },
+    [TYPE_WATER]    = { MOVE_WATER_PULSE,   MOVE_BUBBLE_BEAM,   MOVE_WATERFALL,     MOVE_SURF },
+    [TYPE_GRASS]    = { MOVE_MAGICAL_LEAF,  MOVE_GIGA_DRAIN,    MOVE_SEED_BOMB,     MOVE_ENERGY_BALL },
+    [TYPE_ELECTRIC] = { MOVE_SHOCK_WAVE,    MOVE_SPARK,         MOVE_THUNDER_PUNCH, MOVE_THUNDERBOLT },
+    [TYPE_PSYCHIC]  = { MOVE_PSYBEAM,       MOVE_ZEN_HEADBUTT,  MOVE_PSYCHIC },
+    [TYPE_ICE]      = { MOVE_ICE_FANG,      MOVE_ICE_PUNCH,     MOVE_ICE_BEAM },
+    [TYPE_DRAGON]   = { MOVE_DRAGON_BREATH, MOVE_DRAGON_CLAW,   MOVE_DRAGON_PULSE },
+    [TYPE_DARK]     = { MOVE_BITE,          MOVE_THIEF,         MOVE_NIGHT_SLASH,   MOVE_CRUNCH,        MOVE_DARK_PULSE },
+    [TYPE_FAIRY]    = { MOVE_DAZZLING_GLEAM, MOVE_PLAY_ROUGH },
+};
+
+// The strongest type attack a leader's Pokemon of this level is given:
+// Fire Fang's 65 for the early gyms, Lava Plume's 80 in the middle ones,
+// Flamethrower's 90 from 35 and Earthquake's 100 from 45.
+static u32 TypeAttackCap(u32 level)
+{
+    if (level < 25)
+        return 65;
+    if (level < 35)
+        return 80;
+    if (level < 45)
+        return 90;
+    return 100;
+}
+
+static bool32 LearnsByLevel(u16 species, enum Move move, u32 level)
+{
+    const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(species);
+    u32 i;
+    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END && learnset[i].level <= level; i++)
+        if (learnset[i].move == move)
+            return TRUE;
+    return FALSE;
+}
+
+// Each Pokemon of the leader's type that knows no attack of the type of
+// TYPE_ATTACK_MIN_POWER learns the strongest one on its type's list it can
+// learn (by level, TM or tutor) up to its level's cap: over its weakest
+// attack of the type, else as an answer is taught. Before the answers, so
+// those keep their slots.
+static void GiveLeaderTypeAttacks(u32 size, enum Type type)
+{
+    u32 i, j, k;
+    if (type == TYPE_NONE || type >= NUMBER_OF_MON_TYPES)
+        return;
+    for (i = 0; i < size; i++)
+    {
+        struct TrainerMon *mon = &sTrainerParty[i];
+        u32 cap = TypeAttackCap(mon->lvl), slot = MAX_MON_MOVES;
+        u16 move = MOVE_NONE;
+        bool32 has = FALSE;
+        if (!SpeciesHasType(mon->species, type))
+            continue;
+        FillLevelMoves(mon);
+        for (j = 0; j < MAX_MON_MOVES; j++)
+        {
+            enum Move m = mon->moves[j];
+            if (m == MOVE_NONE || GetMoveType(m) != type || GetMoveCategory(m) == DAMAGE_CATEGORY_STATUS)
+                continue;
+            if (GetMovePower(m) >= TYPE_ATTACK_MIN_POWER)
+                has = TRUE;
+            else if (slot == MAX_MON_MOVES || GetMovePower(m) < GetMovePower(mon->moves[slot]))
+                slot = j;
+        }
+        if (has)
+            continue;
+        for (k = TYPE_ATTACKS; k-- > 0 && move == MOVE_NONE;)
+        {
+            u16 m = sTypeAttacks[type][k];
+            if (m != MOVE_NONE && GetMovePower(m) <= cap
+             && (LearnsByLevel(mon->species, m, mon->lvl) || CanLearnTeachableMove(mon->species, m)))
+                move = m;
+        }
+        if (move == MOVE_NONE)
+            continue;
+        if (slot != MAX_MON_MOVES)
+            mon->moves[slot] = move;
+        else
+            TeachAnswer(mon, move, type);
+    }
 }
 
 // Up to two of the team learn a move that hits one of the types that beat
@@ -4860,7 +4975,7 @@ static void GiveLeaderAnswers(u32 size, enum Type type)
                     u16 move = sAnswerMoves[a][k];
                     if (move != MOVE_NONE && CanLearnTeachableMove(mon->species, move))
                     {
-                        TeachAnswer(mon, move);
+                        TeachAnswer(mon, move, type);
                         used[slot] = TRUE;
                         answered = TRUE;
                         given++;
@@ -5270,6 +5385,7 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
         const struct LeaderDef *leader = &sLeaders[sE4[member]];
         size = 5;
         BuildLeaderTeam(leader, &rng, size, sRegion.e4Level[member], 500, TRUE, 24);
+        GiveLeaderTypeAttacks(size, leader->type);
         GiveLeaderAnswers(size, leader->type);
         sTrainerParty[size - 1].heldItem = ITEM_SITRUS_BERRY;
         sTrainer.items[0] = ITEM_FULL_RESTORE;
@@ -5305,7 +5421,10 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
             TameFirstLeader(size, leader->type, (gRogueTestLeader[0] && (gRogueTestLeader[3] & 16)) ? ITEM_NONE
                                                 : RogueGen_GymTM(&sRegion, gym, leader->type));
         else
+        {
+            GiveLeaderTypeAttacks(size, leader->type);
             GiveLeaderAnswers(size, leader->type);
+        }
         sTrainerParty[size - 1].heldItem = (step == 0) ? ITEM_ORAN_BERRY : ITEM_SITRUS_BERRY;
         sTrainer.items[0] = (step == 0) ? ITEM_POTION : (step < 5 ? ITEM_SUPER_POTION : ITEM_HYPER_POTION);
         if (step >= 3)
