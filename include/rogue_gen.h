@@ -1453,6 +1453,7 @@ enum RogueItemRole
     RIR_TM,
     RIR_MONEY,   // things to sell: Nuggets, Pearls...
     RIR_FIELD,   // Repels, Escape Rope
+    RIR_NEWTM,   // later-gen TMs (TM51-60): only from leaders, the prize desk and dungeon floors
     RIR_COUNT,
 };
 
@@ -1515,6 +1516,16 @@ u32 RogueGen_SpecialtyStock(const struct RogueRegion *r, u8 place, u8 badges, u1
 #define ROGUE_DIVE_BADGES      7
 #define ROGUE_WATERFALL_BADGES ROGUE_NUM_GYMS
 bool8 RogueGen_IsHM(u16 item);
+// The later-gen TMs (TM51 to TM60: Liquidation, Scald, X-Scissor, Play
+// Rough, Dazzling Gleam, Crunch, Rock Slide, Iron Head, Poison Jab, Flash
+// Cannon), for the player only: from ROGUE_NEW_TM_BADGES, leaders of their
+// type give them, the prize desk sells one at a time, and a dungeon that
+// opens then hides one on its deepest floor. Trainers' teams keep to
+// Emerald's TMs and tutors.
+#define ROGUE_NEW_TM_BADGES 3
+#define ROGUE_NUM_NEW_TMS   10
+bool8 RogueGen_IsNewTM(u16 item);
+u16 RogueGen_NewTM(u32 i);
 u8 RogueGen_HMBadges(const struct RogueRegion *r, u16 hm);
 // The badges that open the Coin Case and prize desk in this region:
 // ROGUE_PRIZE_BADGES, or 1 when its Game Corner town is reached with 1.

@@ -2,7 +2,7 @@
 #define GUARD_CONSTANTS_ROGUE_H
 
 // Version of this build. tools/roguemon reads it for release names and covers.
-#define ROGUEMON_VERSION "1.2.3-beta"
+#define ROGUEMON_VERSION "1.2.4-beta"
 
 // Save data. These reuse vars and flags that vanilla Emerald leaves unused.
 #define VAR_ROGUE_SEED_LO     VAR_UNUSED_0x40F7
@@ -345,6 +345,11 @@
 // RUN 0's region (include/rogue_run0_region.h): act 4, the Director deletes
 // Terry, and his house is an empty lot (set by the story).
 #define FLAG_ROGUE_RUN0_TERRY_DELETED FLAG_UNUSED_0x4FF
+
+// UNLOCKS' NO EXPLOSIONS row (v1.2.4): wild Pokemon never know Explosion,
+// Self-Destruct or Misty Explosion. Off on a new file; the player's setting,
+// so it is carried through a new game like the record (Rogue_StashRecord).
+#define FLAG_ROGUE_NO_EXPLOSIONS FLAG_UNUSED_0x2D9
 
 
 // Casual mode: the RULES rows as bits, and the four presets.

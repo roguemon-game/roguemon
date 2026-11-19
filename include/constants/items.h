@@ -1055,6 +1055,11 @@ enum __attribute__((packed)) Item
     // roguemon: levels a Pokemon up to the next leader's ace.
     ITEM_CAP_CANDY = 874,
 
+    // roguemon: evolves a Pokemon into its Hisuian, Galarian, Alolan or
+    // Paldean form (Dartrix into Hisuian Decidueye, Koffing into Galarian
+    // Weezing), at the level it would evolve there.
+    ITEM_REGIONAL_CHARM = 875,
+
     ITEMS_COUNT,
     ITEM_FIELD_ARROW = ITEMS_COUNT,
 };

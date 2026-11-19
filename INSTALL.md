@@ -10,7 +10,7 @@ make -j8
 
 This writes `pokeemerald.gba`, a release build (no debug menus). `make RELEASE=0` builds `pokeemerald-dev.gba` with the expansion's debug menus.
 
-**Matching the release.** The released patches are built with the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) 15.2.rel1 (`arm-none-eabi`). With that toolchain on your `PATH`, building `main` (the v1.2.3-beta source) gives exactly the ROM the v1.2.3-beta patch makes (SHA-1 `eee7eee0143e617ca450c6079c1707f964e3217f`). Another compiler, such as devkitARM, builds a working ROM with different bytes.
+**Matching the release.** The released patches are built with the [Arm GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) 15.2.rel1 (`arm-none-eabi`). With that toolchain on your `PATH`, building `main` (the v1.2.4-beta source) gives exactly the ROM the v1.2.4-beta patch makes (SHA-1 `8cc44077716c4cf7e5d44f594851ca690d7b786a`). Another compiler, such as devkitARM, builds a working ROM with different bytes.
 
 **Paths with spaces.** `make` breaks when the project or the toolchain sits under a path with a space in it. Keep both under paths without spaces.
 

@@ -51,7 +51,18 @@
     F(STEEL_WING) \
     F(SKILL_SWAP) \
     F(SNATCH) \
-    F(OVERHEAT)
+    F(OVERHEAT) \
+    /* Roguemon: later-gen TMs, given from the 3rd badge */ \
+    F(LIQUIDATION) \
+    F(SCALD) \
+    F(X_SCISSOR) \
+    F(PLAY_ROUGH) \
+    F(DAZZLING_GLEAM) \
+    F(CRUNCH) \
+    F(ROCK_SLIDE) \
+    F(IRON_HEAD) \
+    F(POISON_JAB) \
+    F(FLASH_CANNON)
 
 #define FOREACH_HM(F) \
     F(CUT) \

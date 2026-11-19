@@ -2084,10 +2084,17 @@ static const struct WindowTemplate sUnlockWindows[] =
     DUMMY_WIN_TEMPLATE
 };
 
-// The list order: starters first, then help, then things to find, then the
-// rewards for a win and for legends.
-static const u8 sUnlockOrder[ROGUE_NUM_UNLOCK_ROWS] =
+// The NO EXPLOSIONS row (v1.2.4): a setting, not an unlock. Always there,
+// off on a new file, kept in FLAG_ROGUE_NO_EXPLOSIONS; not counted in the
+// header's earned/total.
+#define ROW_NO_EXPLOSIONS 0xFF
+#define UNLOCK_LIST_ROWS (ROGUE_NUM_UNLOCK_ROWS + 1)
+
+// The list order: the NO EXPLOSIONS setting, then starters, then help, then
+// things to find, then the rewards for a win and for legends.
+static const u8 sUnlockOrder[UNLOCK_LIST_ROWS] =
 {
+    ROW_NO_EXPLOSIONS,
     UNLOCK_EEVEE,
     UNLOCK_PARTNERS,
     UNLOCK_BABIES,
@@ -2149,6 +2156,8 @@ static const u8 sText_On[] = _("ON");
 static const u8 sText_Off[] = _("OFF");
 static const u8 sText_Done[] = _("DONE");
 static const u8 sText_DexRow[] = _("POKéDEX");
+static const u8 sText_NoExplosionsRow[] = _("NO EXPLOSIONS");
+static const u8 sText_NoExplosionsInfo[] = _("Wild POKéMON never know EXPLOSION\nor SELF-DESTRUCT. Trainers still may.");
 static const u8 sText_DexSwitch[] = _("A: CLASSIC, NATIONAL or GLOBAL.");
 static const u8 sText_DexSwitch2[] = _("A: CLASSIC or NATIONAL.");
 static const u8 sText_DexGlobalHint[] = _("GLOBAL: become CHAMPION 3 times.");
@@ -2200,7 +2209,7 @@ static u32 TabRows(u32 tab)
         return ROGUE_NUM_FEATS;
     if (tab == TAB_LEGENDS)
         return ROGUE_LEGEND_ROWS;
-    return ROGUE_NUM_UNLOCK_ROWS;
+    return UNLOCK_LIST_ROWS;
 }
 
 static u32 TabRowsInView(u32 tab)
@@ -2224,7 +2233,7 @@ static u32 CountEarnedUnlocks(void)
 // The tabs, L and R either side, and how far the current one is done.
 static void PrintUnlocksHeader(struct UnlocksScreen *screen)
 {
-    u32 i, x = 2, done, total = TabRows(screen->tab);
+    u32 i, x = 2, done, total = screen->tab == TAB_UNLOCKS ? ROGUE_NUM_UNLOCK_ROWS : TabRows(screen->tab);
 
     FillWindowPixelBuffer(UWIN_HEADER, PIXEL_FILL(0));
     AddTextPrinterParameterized3(UWIN_HEADER, FONT_NORMAL, x, 1, sTextColor_Header, TEXT_SKIP_DRAW, COMPOUND_STRING("{L_BUTTON}"));
@@ -2257,6 +2266,13 @@ static void PrintUnlockRow(struct UnlocksScreen *screen, u32 row, u32 index)
 
     if (index == screen->cursor)
         AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 0, y, sTextColor_Row, TEXT_SKIP_DRAW, gText_SelectorArrow3);
+    if (unlock == ROW_NO_EXPLOSIONS)
+    {
+        bool32 on = FlagGet(FLAG_ROGUE_NO_EXPLOSIONS);
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 10, y, sTextColor_Row, TEXT_SKIP_DRAW, sText_NoExplosionsRow);
+        AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 196, y, on ? sTextColor_On : sTextColor_Off, TEXT_SKIP_DRAW, on ? sText_On : sText_Off);
+        return;
+    }
     if (!Rogue_IsUnlockEarned(unlock))
     {
         AddTextPrinterParameterized3(UWIN_LIST, FONT_NORMAL, 10, y, sTextColor_RowDim, TEXT_SKIP_DRAW, sText_Locked);
@@ -2529,6 +2545,10 @@ static void PrintUnlockInfo(struct UnlocksScreen *screen)
     {
         PrintLegendInfo(screen, screen->cursor);
     }
+    else if (unlock == ROW_NO_EXPLOSIONS)
+    {
+        AddTextPrinterParameterized(UWIN_INFO, FONT_NORMAL, sText_NoExplosionsInfo, 2, 1, TEXT_SKIP_DRAW, NULL);
+    }
     else if (unlock == UNLOCK_NATIONAL_DEX && Rogue_IsUnlockEarned(unlock))
     {
         // The choice, and how to change it or earn the last one.
@@ -2592,8 +2612,10 @@ static void Task_UnlocksExit(u8 taskId)
     RemoveScrollIndicatorArrowPair(screen->arrowTask);
     if (screen->tab == TAB_LEGENDS)
         DestroyLegendIcons(screen);
-    // The record is part of the save, so a change is kept by saving now.
-    if (screen->changed)
+    // The record is part of the save, so a change is kept by saving now;
+    // never on a file with no game yet (a half-made game would show
+    // CONTINUE RUN and hang): the next run's first save keeps it.
+    if (screen->changed && gSaveFileStatus == SAVE_STATUS_OK)
         TrySavingData(SAVE_NORMAL);
     Free(screen);
     FreeAllWindowBuffers();
@@ -2630,6 +2652,17 @@ static void Task_UnlocksInput(u8 taskId)
     {
         PlaySE(SE_SELECT);
         ShowUnlocksTab(screen, (screen->tab + 1) % TAB_COUNT);
+        return;
+    }
+    else if (JOY_NEW(A_BUTTON) && screen->tab == TAB_UNLOCKS && unlock == ROW_NO_EXPLOSIONS)
+    {
+        PlaySE(SE_SELECT);
+        if (FlagGet(FLAG_ROGUE_NO_EXPLOSIONS))
+            FlagClear(FLAG_ROGUE_NO_EXPLOSIONS);
+        else
+            FlagSet(FLAG_ROGUE_NO_EXPLOSIONS);
+        screen->changed = TRUE;
+        PrintUnlocksList(screen);
         return;
     }
     else if (JOY_NEW(A_BUTTON) && screen->tab == TAB_UNLOCKS && Rogue_IsUnlockEarned(unlock) && unlock != UNLOCK_HARDCORE)

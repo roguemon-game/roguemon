@@ -22,6 +22,7 @@
 #include "pokemon_storage_system.h"
 #include "random.h"
 #include "random_mon_generation.h"
+#include "rogue.h"
 #include "script.h"
 #include "sprite.h"
 #include "string_util.h"
@@ -131,6 +132,7 @@ void CreateScriptedWildMon(enum Species species, u8 level, enum Item item)
         RANDOM_UNOWN_LETTER);
     CreateMonWithIVs(&gParties[B_TRAINER_OPPONENT_A][0], species, level, personality, OTID_STRUCT_PLAYER_ID, USE_RANDOM_IVS);
     GiveMonInitialMoveset(&gParties[B_TRAINER_OPPONENT_A][0]);
+    Rogue_TrimWildMoves(&gParties[B_TRAINER_OPPONENT_A][0]); // roguemon: UNLOCKS' NO EXPLOSIONS row
     if (item)
     {
         heldItem[0] = item;
@@ -150,6 +152,7 @@ void CreateScriptedDoubleWildMon(enum Species species1, u8 level1, enum Item ite
         RANDOM_UNOWN_LETTER);
     CreateMonWithIVs(&gParties[B_TRAINER_OPPONENT_A][0], species1, level1, personality, OTID_STRUCT_PLAYER_ID, USE_RANDOM_IVS);
     GiveMonInitialMoveset(&gParties[B_TRAINER_OPPONENT_A][0]);
+    Rogue_TrimWildMoves(&gParties[B_TRAINER_OPPONENT_A][0]); // roguemon: UNLOCKS' NO EXPLOSIONS row
     if (item1)
     {
         heldItem1[0] = item1;
@@ -163,6 +166,7 @@ void CreateScriptedDoubleWildMon(enum Species species1, u8 level1, enum Item ite
         RANDOM_UNOWN_LETTER);
     CreateMonWithIVs(&gParties[B_TRAINER_OPPONENT_A][1], species2, level2, personality, OTID_STRUCT_PLAYER_ID, USE_RANDOM_IVS);
     GiveMonInitialMoveset(&gParties[B_TRAINER_OPPONENT_A][1]);
+    Rogue_TrimWildMoves(&gParties[B_TRAINER_OPPONENT_A][1]);
     if (item2)
     {
         heldItem2[0] = item2;

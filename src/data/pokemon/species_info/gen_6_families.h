@@ -5147,6 +5147,7 @@ const struct SpeciesInfo gSpeciesInfoGen6[] =
         .evolutions = EVOLUTION({EVO_LEVEL, 40, SPECIES_SLIGGOO, CONDITIONS({IF_NOT_REGION, REGION_HISUI})}
                             #if P_HISUIAN_FORMS
                                 ,{EVO_LEVEL, 40, SPECIES_SLIGGOO_HISUI, CONDITIONS({IF_REGION, REGION_HISUI})}
+                                ,{EVO_ITEM, ITEM_REGIONAL_CHARM, SPECIES_SLIGGOO_HISUI, CONDITIONS({IF_MIN_LEVEL, 40})}
                             #endif
                             ),
     },
@@ -6256,6 +6257,7 @@ const struct SpeciesInfo gSpeciesInfoGen6[] =
         .evolutions = EVOLUTION({EVO_LEVEL, 37, SPECIES_AVALUGG, CONDITIONS({IF_NOT_REGION, REGION_HISUI})}
                             #if P_HISUIAN_FORMS
                                 ,{EVO_LEVEL, 37, SPECIES_AVALUGG_HISUI, CONDITIONS({IF_REGION, REGION_HISUI})}
+                                ,{EVO_ITEM, ITEM_REGIONAL_CHARM, SPECIES_AVALUGG_HISUI, CONDITIONS({IF_MIN_LEVEL, 37})}
                             #endif
                             ),
     },

@@ -5,7 +5,9 @@
 // (ROGUE_PRIZE_BADGES). Paid with money: 2 or 3 TMs and 2 held items from
 // the seed, the town and the badges (RogueGen_PrizeStock), so the stock
 // changes each run, then each of the eight HMs from the badge that opens its
-// field move (Rogue_IsFieldMoveBadgeWon).
+// field move (Rogue_IsFieldMoveBadgeWon), and from the 3rd badge the ten
+// later-gen TMs (ROGUE_NEW_TM_BADGES), one at a time (a TM is used up when
+// taught, and then sold again).
 //
 // Megas match the player's own Pokemon, since in a Nuzlocke a stone for a
 // Pokemon the player never caught is no use:
@@ -52,7 +54,7 @@
 #define ROGUE_MEGA_STONE_CAP 3
 #define ROGUE_MEGA_STONE_PRICE 10000
 #define MAX_MEGA_CHOICES 8
-#define MAX_PRIZE_STOCK 20
+#define MAX_PRIZE_STOCK 30
 // Each HM from the badge that opens its field move, at a TM's price, one of
 // each a run.
 #define ROGUE_PRIZE_HM_PRICE 3000
@@ -281,7 +283,7 @@ u32 Rogue_PrizePrice(u32 price, u16 item)
 bool32 Rogue_PrizeOwnedAlready(u16 item)
 {
     struct MegaScan sc;
-    if (RogueGen_IsHM(item))
+    if (RogueGen_IsHM(item) || RogueGen_IsNewTM(item))
         return CheckBagHasItem(item, 1) || CheckPCHasItem(item, 1);
     if (!Rogue_IsMegaStone(item))
         return FALSE;
@@ -321,7 +323,7 @@ void Rogue_PreparePrizeCounter(void)
         return;
     stone = CounterStone(place);
     evoItem = CounterEvoItem(place);
-    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 3 - NUM_PRIZE_HMS,
+    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 3 - NUM_PRIZE_HMS - ROGUE_NUM_NEW_TMS,
                             MegasHere() && stone == ITEM_NONE, ItemPrice);
     for (i = 0; i < n && evoItem != ITEM_NONE; i++)
         if (sPrizeStock[i] == evoItem)
@@ -333,6 +335,10 @@ void Rogue_PreparePrizeCounter(void)
     for (i = 0; i < NUM_PRIZE_HMS; i++)
         if (Rogue_IsFieldMoveBadgeWon(sPrizeHMs[i][1]))
             sPrizeStock[n++] = sPrizeHMs[i][0];
+    // The later-gen TMs, the same way, from the 3rd badge.
+    if (Rogue_BadgeCount() >= ROGUE_NEW_TM_BADGES)
+        for (i = 0; i < ROGUE_NUM_NEW_TMS; i++)
+            sPrizeStock[n++] = RogueGen_NewTM(i);
     if (stone != ITEM_NONE)
         sPrizeStock[n++] = stone;
     sPrizeStock[n] = ITEM_NONE;

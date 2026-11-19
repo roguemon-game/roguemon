@@ -39,6 +39,7 @@ struct RogueItemDef
 #define IT(item, role, from, until, w, cap, qty) { ITEM_##item, RIR_##role, from, until, w, cap, qty, 0 }
 #define TM(move, type, from, w)                  { ITEM_TM_##move, RIR_TM, from, 8, w, 1, 1, TYPE_##type }
 #define TY(item, type, w)                        { ITEM_##item, RIR_TYPE, 0, 8, w, 1, 1, TYPE_##type }
+#define NT(move, type)                           { ITEM_TM_##move, RIR_NEWTM, ROGUE_NEW_TM_BADGES, 8, 0, 1, 1, TYPE_##type }
 
 // Grouped by role, in the order of enum RogueItemRole.
 static const struct RogueItemDef sItemCatalogue[] =
@@ -325,13 +326,44 @@ static const struct RogueItemDef sItemCatalogue[] =
     IT(MAX_REPEL,      FIELD, 5, 8, 3, 2, 1),
     IT(HONEY,          FIELD, 1, 8, 1, 1, 1),
     IT(POKE_DOLL,      FIELD, 0, 5, 1, 1, 1),
+    // The later-gen TMs, last and with no weight, so no taste,
+    // shop or prize pick draws them and those draws stay as they were:
+    // leaders of their type (RogueGen_GymTM), the prize desk
+    // (src/rogue_prize.c) and dungeon floors (sFloorNewTMs) give them.
+    NT(LIQUIDATION,    WATER),
+    NT(SCALD,          WATER),
+    NT(X_SCISSOR,      BUG),
+    NT(PLAY_ROUGH,     FAIRY),
+    NT(DAZZLING_GLEAM, FAIRY),
+    NT(CRUNCH,         DARK),
+    NT(ROCK_SLIDE,     ROCK),
+    NT(IRON_HEAD,      STEEL),
+    NT(POISON_JAB,     POISON),
+    NT(FLASH_CANNON,   STEEL),
 };
 
 #undef IT
 #undef TM
 #undef TY
+#undef NT
 
 #define NUM_CATALOGUE (sizeof(sItemCatalogue) / sizeof(sItemCatalogue[0]))
+// The entries random picks by index draw from: all but the later-gen TMs.
+#define NUM_CATALOGUE_DRAWN (NUM_CATALOGUE - ROGUE_NUM_NEW_TMS)
+
+bool8 RogueGen_IsNewTM(u16 item)
+{
+    u32 i;
+    for (i = NUM_CATALOGUE_DRAWN; i < NUM_CATALOGUE; i++)
+        if (sItemCatalogue[i].item == item)
+            return TRUE;
+    return FALSE;
+}
+
+u16 RogueGen_NewTM(u32 i)
+{
+    return i < ROGUE_NUM_NEW_TMS ? sItemCatalogue[NUM_CATALOGUE_DRAWN + i].item : ITEM_NONE;
+}
 
 // How each source likes each role. Healing, status and PP weigh less with
 // every badge (sHealScale), so they are common early and a minority later.
@@ -410,6 +442,24 @@ static const u16 sPrizeSignature[RDUN_COUNT][6] =
     [RDUN_ICE]     = { ITEM_ICE_STONE, ITEM_NEVER_MELT_ICE, ITEM_TM_ICE_BEAM, ITEM_TM_BLIZZARD, ITEM_ICY_ROCK, ITEM_SHELL_BELL },
     [RDUN_VOLCANO] = { ITEM_FIRE_STONE, ITEM_CHARCOAL, ITEM_HEAT_ROCK, ITEM_TM_FLAMETHROWER, ITEM_TM_FIRE_BLAST, ITEM_TM_OVERHEAT },
     [RDUN_MIRAGE]  = { ITEM_TM_EARTHQUAKE, ITEM_TM_DIG, ITEM_SOFT_SAND, ITEM_SMOOTH_ROCK, ITEM_SUN_STONE, ITEM_TM_ROCK_TOMB },
+};
+
+// The later-gen TMs a dungeon kind hides on its deepest floor, one a
+// dungeon that opens from ROGUE_NEW_TM_BADGES (each once a run).
+static const u16 sFloorNewTMs[RDUN_COUNT][4] =
+{
+    [RDUN_CAVE]    = { ITEM_TM_ROCK_SLIDE, ITEM_TM_IRON_HEAD, ITEM_TM_CRUNCH, ITEM_TM_X_SCISSOR },
+    [RDUN_VICTORY] = { ITEM_TM_ROCK_SLIDE, ITEM_TM_IRON_HEAD, ITEM_TM_CRUNCH, ITEM_TM_LIQUIDATION },
+    [RDUN_FOREST]  = { ITEM_TM_X_SCISSOR, ITEM_TM_POISON_JAB, ITEM_TM_PLAY_ROUGH, ITEM_TM_DAZZLING_GLEAM },
+    [RDUN_TOWER]   = { ITEM_TM_CRUNCH, ITEM_TM_DAZZLING_GLEAM, ITEM_TM_PLAY_ROUGH, ITEM_TM_FLASH_CANNON },
+    [RDUN_HIDEOUT] = { ITEM_TM_CRUNCH, ITEM_TM_POISON_JAB, ITEM_TM_SCALD, ITEM_TM_LIQUIDATION },
+    [RDUN_LAIR]    = { ITEM_TM_DAZZLING_GLEAM, ITEM_TM_FLASH_CANNON, ITEM_TM_PLAY_ROUGH, ITEM_TM_SCALD },
+    [RDUN_RUINS]   = { ITEM_TM_ROCK_SLIDE, ITEM_TM_IRON_HEAD, ITEM_TM_FLASH_CANNON, ITEM_TM_X_SCISSOR },
+    [RDUN_SHIP]    = { ITEM_TM_LIQUIDATION, ITEM_TM_SCALD, ITEM_TM_FLASH_CANNON, ITEM_TM_CRUNCH },
+    [RDUN_PLANT]   = { ITEM_TM_FLASH_CANNON, ITEM_TM_IRON_HEAD, ITEM_TM_X_SCISSOR, ITEM_TM_POISON_JAB },
+    [RDUN_ICE]     = { ITEM_TM_LIQUIDATION, ITEM_TM_SCALD, ITEM_TM_ROCK_SLIDE, ITEM_TM_IRON_HEAD },
+    [RDUN_VOLCANO] = { ITEM_TM_ROCK_SLIDE, ITEM_TM_CRUNCH, ITEM_TM_IRON_HEAD, ITEM_TM_POISON_JAB },
+    [RDUN_MIRAGE]  = { ITEM_TM_ROCK_SLIDE, ITEM_TM_X_SCISSOR, ITEM_TM_POISON_JAB, ITEM_TM_CRUNCH },
 };
 
 // What a wreck's storage room keeps, as the Abandoned Ship's keeps TM13
@@ -858,8 +908,24 @@ static void RunLedger(const struct RogueRegion *r, struct LedgerQuery *q, u8 fla
         struct RogueDungeonExtras e;
         u16 picked[3] = { ITEM_NONE, ITEM_NONE, ITEM_NONE };
         u8 balls = d->boss == RBOSS_LEGEND ? LEGEND_BALL_FINDS : 0;
-        u32 storage = ShipStorageItem(r, i);
+        u32 storage = ShipStorageItem(r, i), nPlain = 0;
+        s32 newTMFind = -1;
         RogueGen_DungeonExtras(r, i, &e);
+        // The later-gen TM's find: the last plain find (the deepest floor's),
+        // in a dungeon that opens from ROGUE_NEW_TM_BADGES, when it isn't one
+        // of a legend's balls.
+        for (k = d->itemBase; k < (u32)d->itemBase + d->nItems && d->badges >= ROGUE_NEW_TM_BADGES; k++)
+        {
+            if (k == e.camp || (e.nKeys && k >= e.keys && k < (u32)e.keys + e.nKeys)
+             || (e.nDecoys && k >= e.decoys && k < (u32)e.decoys + e.nDecoys)
+             || k == e.prize || k == storage || (e.nChoice && k >= e.choice && k < (u32)e.choice + e.nChoice)
+             || k == e.explorer)
+                continue;
+            nPlain++;
+            newTMFind = k;
+        }
+        if (nPlain <= balls)
+            newTMFind = -1;
         for (k = d->itemBase; k < (u32)d->itemBase + d->nItems; k++)
         {
             u32 rng = RogueRng_Hash(r->seed, 17500 + k), floor, stage, taste = TASTE_FLOOR;
@@ -929,6 +995,21 @@ static void RunLedger(const struct RogueRegion *r, struct LedgerQuery *q, u8 fla
                     en = DrawList(&l, sFloorSignature[kind], 8, stage, &rng);
                 if (en < 0)
                     en = DrawTaste(&l, TASTE_FLOOR, stage, &rng);
+                // The deepest plain find: a later-gen TM of the kind's, if
+                // one is left to give (its own seed). The find it replaces
+                // still counts in the ledger, so every other find is the
+                // same as before.
+                if ((s32)k == newTMFind)
+                {
+                    u32 tmRng = RogueRng_Hash(r->seed, 17960 + i);
+                    s32 tmE = DrawList(&l, sFloorNewTMs[kind], 4, 8, &tmRng);
+                    if (tmE >= 0)
+                    {
+                        if (en >= 0)
+                            LedgerAdd(&l, en);
+                        en = tmE;
+                    }
+                }
             }
             Hand(&l, q, RITEMS_BALL, k, en, ITEM_ULTRA_BALL, qty, stage, taste);
             if (q->found && !q->sink)
@@ -1109,6 +1190,29 @@ u16 RogueGen_GymTM(const struct RogueRegion *r, u8 gym, u8 type)
     for (i = 0; i < sizeof(sHMs) / sizeof(sHMs[0]); i++)
         if (sHMs[i][1] == type && RogueGen_HMBadges(r, sHMs[i][0]) <= gym + 1)
             hms[nHM++] = sHMs[i][0];
+    // From the 3rd badge (ROGUE_NEW_TM_BADGES), a leader of a type with a
+    // later-gen TM (Water, Dark, Rock, Poison) gives a strong attack of its
+    // type: one of those TMs, its type's open HMs, or its type's late
+    // Emerald TMs (Sludge Bomb, from the 4th badge). Before this, a Water team
+    // had only Water Pulse at the League.
+    if (gym + 1 >= ROGUE_NEW_TM_BADGES)
+    {
+        u16 strong[12];
+        u32 ns = 0;
+        for (i = NUM_CATALOGUE_DRAWN; i < NUM_CATALOGUE; i++)
+            if (sItemCatalogue[i].type == type)
+                strong[ns++] = sItemCatalogue[i].item;
+        if (ns > 0)
+        {
+            for (i = 0; i < nHM; i++)
+                strong[ns++] = hms[i];
+            for (i = 0; i < NUM_CATALOGUE_DRAWN && ns < 12; i++)
+                if (sItemCatalogue[i].role == RIR_TM && sItemCatalogue[i].type == type
+                 && sItemCatalogue[i].from >= 4 && sItemCatalogue[i].from <= gym + 1)
+                    strong[ns++] = sItemCatalogue[i].item;
+            return strong[RogueRng_Range(&rng, ns)];
+        }
+    }
     if (type == TYPE_WATER && nHM > 0)
         return hms[RogueRng_Range(&rng, nHM)];
     for (i = 0; i < nHM; i++)
@@ -1153,7 +1257,8 @@ static const struct ShopDef sShopFixed[][12] =
                         { ITEM_CARBOS, 0 }, { ITEM_PP_UP, 4 } },
     [RSHOP_STONE]   = { { ITEM_FIRE_STONE, 0 }, { ITEM_WATER_STONE, 0 }, { ITEM_THUNDER_STONE, 0 }, { ITEM_LEAF_STONE, 0 },
                         { ITEM_MOON_STONE, 0 }, { ITEM_SUN_STONE, 3 }, { ITEM_SHINY_STONE, 4 }, { ITEM_DUSK_STONE, 4 },
-                        { ITEM_DAWN_STONE, 5 }, { ITEM_ICE_STONE, 5 }, { ITEM_LINKING_CORD, 6 } },
+                        { ITEM_DAWN_STONE, 5 }, { ITEM_ICE_STONE, 5 }, { ITEM_LINKING_CORD, 6 },
+                        { ITEM_REGIONAL_CHARM, 3 } },
     [RSHOP_BALL]    = { { ITEM_NEST_BALL, 0 }, { ITEM_NET_BALL, 0 }, { ITEM_REPEAT_BALL, 1 }, { ITEM_TIMER_BALL, 2 },
                         { ITEM_DIVE_BALL, 2 }, { ITEM_QUICK_BALL, 3 }, { ITEM_DUSK_BALL, 3 }, { ITEM_LUXURY_BALL, 1 },
                         { ITEM_PREMIER_BALL, 0 } },
@@ -1205,7 +1310,7 @@ u32 RogueGen_SpecialtyStock(const struct RogueRegion *r, u8 place, u8 badges, u1
         memset(taken, 0, sizeof(taken));
         for (i = 0; i < 400 && n < want && n + 1 < max; i++)
         {
-            u32 e = RogueRng_Range(&rng, NUM_CATALOGUE);
+            u32 e = RogueRng_Range(&rng, NUM_CATALOGUE_DRAWN);
             // Not the most powerful held items: those are found, not bought.
             if (sItemCatalogue[e].role != role || sItemCatalogue[e].from > stage || ((taken[e / 8] >> (e % 8)) & 1)
              || (role == RIR_HELD && sItemCatalogue[e].from >= 5))
@@ -1249,7 +1354,7 @@ static u32 PrizePick(u32 *rng, u32 role, u32 stage, u16 *out, u32 n, u32 want, u
     u32 i, j;
     for (i = 0; i < 400 && n < want && n + 1 < max; i++)
     {
-        u32 e = RogueRng_Range(rng, NUM_CATALOGUE);
+        u32 e = RogueRng_Range(rng, NUM_CATALOGUE_DRAWN);
         if (sItemCatalogue[e].role != role || sItemCatalogue[e].from > stage
          || (role == RIR_HELD && sItemCatalogue[e].from >= 5)
          || (role == RIR_HELD && price != NULL && price(sItemCatalogue[e].item) > ROGUE_PRIZE_MAX_HELD_PRICE))

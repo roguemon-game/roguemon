@@ -533,7 +533,7 @@ u32 Rogue_Run0BestMoves(u16 species, u32 level, u16 *out)
         if (ls[i].level <= level && ls[i].move != MOVE_NONE && !InMoveList(cand, n, ls[i].move))
             cand[n++] = ls[i].move;
     for (i = 0; i < ARRAY_COUNT(sRun0TmMoves) && n < ARRAY_COUNT(cand); i++)
-        if (!InMoveList(cand, n, sRun0TmMoves[i]) && CanLearnTeachableMove(species, sRun0TmMoves[i]))
+        if (!InMoveList(cand, n, sRun0TmMoves[i]) && Rogue_TrainerCanTeach(species, sRun0TmMoves[i]))
             cand[n++] = sRun0TmMoves[i];
     for (i = 0; i < n; i++)
         worth[i] = MoveWorth(species, cand[i]);

@@ -1147,6 +1147,7 @@ void Rogue_StashRecord(struct RogueRecordStash *stash)
     stash->vars[4] = VarGet(VAR_ROGUE_META_CHAMPION_MON);
     // The kind of the run to come, set by the menu (RUN 0, ENDLESS).
     stash->vars[5] = VarGet(VAR_ROGUE_RUN_KIND);
+    stash->noExplosions = FlagGet(FLAG_ROGUE_NO_EXPLOSIONS);
     // The run being left, in the Director's run log.
     Rogue_RunLogLeave();
 }
@@ -1167,6 +1168,8 @@ void Rogue_RestoreRecord(const struct RogueRecordStash *stash)
     VarSet(VAR_ROGUE_META_BEST, stash->vars[3]);
     VarSet(VAR_ROGUE_META_CHAMPION_MON, stash->vars[4]);
     VarSet(VAR_ROGUE_RUN_KIND, stash->vars[5]);
+    if (stash->noExplosions)
+        FlagSet(FLAG_ROGUE_NO_EXPLOSIONS);
     Rogue_UpdateRecord();
     Rogue_GetRecord()->runStart = Rogue_GetRecord()->unlocks;
     Rogue_GetRecord()->runStartHi = Rogue_GetRecord()->unlocksHi;
@@ -1174,6 +1177,69 @@ void Rogue_RestoreRecord(const struct RogueRecordStash *stash)
     Rogue_GetRecord()->featsStart = Rogue_GetRecord()->feats;
     sPendingFeats = 0;
     sPendingLegend = RLEG_NONE;
+}
+
+// UNLOCKS' NO EXPLOSIONS row: wild Pokemon without the moves that make
+// them faint themselves (a lost first encounter in a Nuzlocke).
+
+// IsExplosionMove (include/move.h): the moves marked .explosion, which are
+// Explosion, Self-Destruct and Misty Explosion.
+// Each such move becomes the latest level-up move up to the Pokemon's
+// level that it doesn't know yet (as the game picks a wild moveset), or
+// nothing; the moves left close up so the first slot is never empty.
+void Rogue_TrimWildMoves(struct Pokemon *mon)
+{
+    const struct LevelUpMove *learnset;
+    u16 moves[MAX_MON_MOVES];
+    u32 i, j, k, level, count = 0;
+    bool32 trimmed = FALSE;
+
+    if (!FlagGet(FLAG_ROGUE_NO_EXPLOSIONS) || GetMonData(mon, MON_DATA_SPECIES) == SPECIES_NONE)
+        return;
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        moves[i] = GetMonData(mon, MON_DATA_MOVE1 + i);
+        if (IsExplosionMove(moves[i]))
+            moves[i] = MOVE_NONE, trimmed = TRUE;
+    }
+    if (!trimmed)
+        return;
+    learnset = GetSpeciesLevelUpLearnset(GetMonData(mon, MON_DATA_SPECIES));
+    level = GetMonData(mon, MON_DATA_LEVEL);
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        if (moves[i] != MOVE_NONE)
+            continue;
+        // The learnset is in level order: walk back from the last move the
+        // level allows.
+        for (k = 0; learnset[k].move != LEVEL_UP_MOVE_END && learnset[k].level <= level; k++)
+            ;
+        while (k-- > 0)
+        {
+            u16 move = learnset[k].move;
+            if (learnset[k].level == 0 || IsExplosionMove(move))
+                continue;
+            for (j = 0; j < MAX_MON_MOVES && moves[j] != move; j++)
+                ;
+            if (j == MAX_MON_MOVES)
+            {
+                moves[i] = move;
+                break;
+            }
+        }
+    }
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        if (moves[i] != MOVE_NONE)
+            moves[count++] = moves[i];
+    }
+    for (i = 0; i < MAX_MON_MOVES; i++)
+    {
+        u16 move = i < count ? moves[i] : MOVE_NONE;
+        u8 pp = GetMovePP(move);
+        SetMonData(mon, MON_DATA_MOVE1 + i, &move);
+        SetMonData(mon, MON_DATA_PP1 + i, &pp);
+    }
 }
 
 // Milestones toward unlocks.

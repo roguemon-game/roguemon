@@ -3514,11 +3514,15 @@ static const u8 sText_EvoFemale[] = _(", female");
 static const u8 sText_EvoSpecial[] = _(", special");
 static const u8 sText_EvoLvUp[] = _("Lv up");
 static const u8 sText_EvoLead[] = _(", lead ");
+static const u8 sText_EvoComma[] = _(", ");
 static const u8 sText_EvoSteps[] = _(" steps");
 static const u8 sText_EvoTrade[] = _("Trade");
 static const u8 sText_EvoInBattle[] = _(" in battle");
 static const u8 sText_EvoOther[] = _("Special");
 static const u8 sText_EvoNone[] = _("Does not evolve");
+// Roguémon: friendship, a heart and a number: this Pokemon's (0 to 255) on
+// the TYPE row, the one needed on EVOLVES.
+static const u8 sText_FriendshipHeart[] = _("{EMOJI_HEART}");
 static const u8 sText_EvoMore[] = _(" +{STR_VAR_1} more");
 
 // Roguémon: how this species evolves, from its evolution table:
@@ -3527,20 +3531,22 @@ static const u8 sText_EvoMore[] = _(" +{STR_VAR_1} more");
 // leading the party (gFollowerSteps: it starts again from 0 when the lead
 // changes or the game is reloaded). Conditions it has no short words for
 // read ', special'. Several ways
-// show the first and '+N more' (N other species).
+// show the first and '+N more' (N other species). A friendship way shows
+// the friendship needed, 'Friendship <heart>160, day', above this
+// Pokemon's own on the TYPE row (PrintFriendship).
 static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
 {
     const struct EvolutionParam *params = evo->params;
     u32 i;
     bool32 friendship = FALSE, steps = FALSE;
-    u16 holdItem = ITEM_NONE, knows = MOVE_NONE;
+    u16 holdItem = ITEM_NONE, knows = MOVE_NONE, friendshipNeeded = 0;
     u8 *end = dst;
 
     *dst = EOS;
     for (i = 0; params != NULL && params[i].condition != CONDITIONS_END; i++)
     {
         if (params[i].condition == IF_MIN_FRIENDSHIP)
-            friendship = TRUE;
+            friendship = TRUE, friendshipNeeded = params[i].arg1;
         else if (params[i].condition == IF_HOLD_ITEM)
             holdItem = params[i].arg1;
         else if (params[i].condition == IF_KNOWS_MOVE)
@@ -3556,7 +3562,12 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
         if (evo->param > 1)
             end = ConvertIntToDecimalStringN(StringCopy(dst, sText_EvoLv), evo->param, STR_CONV_MODE_LEFT_ALIGN, 3);
         else if (friendship)
-            end = StringCopy(dst, sText_EvoFriendship);
+        {
+            end = StringCopy(dst, sText_EvoFriendship);                                 // 'Friendship <heart>160'
+            *end++ = CHAR_SPACE;
+            end = StringCopy(end, sText_FriendshipHeart);
+            end = ConvertIntToDecimalStringN(end, friendshipNeeded, STR_CONV_MODE_LEFT_ALIGN, 3);
+        }
         else if (holdItem != ITEM_NONE)
             end = StringAppend(StringCopy(dst, sText_EvoHold), GetItemName(holdItem));   // 'Hold Razor Claw, night'
         else if (knows != MOVE_NONE)
@@ -3604,6 +3615,10 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
         case IF_GENDER:
             end = StringAppend(dst, params[i].arg1 == MON_MALE ? sText_EvoMale : sText_EvoFemale);
             break;
+        case IF_MIN_LEVEL:
+            end = StringAppend(dst, sText_EvoComma);                                    // 'Regional Charm, Lv. 36'
+            end = ConvertIntToDecimalStringN(StringAppend(dst, sText_EvoLv), params[i].arg1, STR_CONV_MODE_LEFT_ALIGN, 3);
+            break;
         case IF_MIN_OVERWORLD_STEPS:
             end = StringAppend(dst, sText_EvoLead);
             end = ConvertIntToDecimalStringN(end, params[i].arg1, STR_CONV_MODE_LEFT_ALIGN, 5);
@@ -3626,7 +3641,7 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
         }
         if (params[i].condition != IF_HOLD_ITEM && params[i].condition != IF_KNOWS_MOVE
          && params[i].condition != IF_TIME && params[i].condition != IF_GENDER
-         && params[i].condition != IF_MIN_OVERWORLD_STEPS)
+         && params[i].condition != IF_MIN_OVERWORLD_STEPS && params[i].condition != IF_MIN_LEVEL)
             break;   // one ', special' is enough
     }
     (void)end;
@@ -3657,8 +3672,11 @@ static void BufferEvolvesText(u8 *dst)
         if (evos[i].method == EVO_NONE || evos[i].method == EVO_SPLIT_FROM_EVO
          || !IsSpeciesEnabled(evos[i].targetSpecies) || !EvoInThisRegion(evos[i].params))
             continue;
+        // Against the ways counted so far: the REGIONAL CHARM's way to
+        // Hisuian Decidueye counts though Hisui's own way is listed first.
         for (j = 0; j < i; j++)
-            if (evos[j].targetSpecies == evos[i].targetSpecies)
+            if (evos[j].targetSpecies == evos[i].targetSpecies && evos[j].method != EVO_NONE
+             && evos[j].method != EVO_SPLIT_FROM_EVO && EvoInThisRegion(evos[j].params))
                 break;
         if (j < i && count != 0)
             continue;   // another way to the same species: count it once
@@ -3678,6 +3696,28 @@ static void BufferEvolvesText(u8 *dst)
     }
 }
 
+// Roguémon: friendship (0 to 255) at the right end of the TYPE row, past
+// the two type icons; nothing for an egg. The row is a label window, so
+// the old number is cleared first.
+#define FRIENDSHIP_X 106
+static void PrintFriendship(bool32 isEgg)
+{
+    u8 *str;
+    u32 width;
+
+    FillWindowPixelRect(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE, PIXEL_FILL(0), FRIENDSHIP_X, 0,
+                        WindowWidthPx(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE) - FRIENDSHIP_X, 16);
+    if (!isEgg)
+    {
+        str = StringCopy(gStringVar1, sText_FriendshipHeart);
+        ConvertIntToDecimalStringN(str, sMonSummaryScreen->summary.friendship, STR_CONV_MODE_LEFT_ALIGN, 3);
+        width = GetStringWidth(FONT_NORMAL, gStringVar1, 0);
+        PrintTextOnWindow(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE, gStringVar1,
+                          WindowWidthPx(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE) - width - 2, 1, 0, 0);
+    }
+    CopyWindowToVram(PSS_LABEL_WINDOW_POKEMON_INFO_TYPE, COPYWIN_GFX);
+}
+
 static void PrintMonOTName(void)
 {
     u8 *text = Alloc(64);
@@ -3688,6 +3728,7 @@ static void PrintMonOTName(void)
     BufferEvolvesText(text);
     PrintTextOnWindowToFitPx(windowId, text, x, 1, 0, 0, WindowWidthPx(windowId) - x);
     Free(text);
+    PrintFriendship(FALSE);
 }
 
 static void PrintMonAbilityName(void)
@@ -3841,6 +3882,7 @@ static void PrintEggOTName(void)
     u32 width = GetStringWidth(FONT_NORMAL, gText_OTSlash, 0);
     PrintTextOnWindow(windowId, gText_OTSlash, 0, 1, 0, 1);
     PrintTextOnWindow(windowId, gText_FiveMarks, width, 1, 0, 1);
+    PrintFriendship(TRUE);
 }
 
 static void PrintEggState(void)

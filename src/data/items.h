@@ -13055,7 +13055,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM51"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Slams the foe with\n"
+            "water. May lower\n"
+            "its Defense."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13066,7 +13069,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM52"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Shoots boiling\n"
+            "water. May burn\n"
+            "the foe."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13077,7 +13083,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM53"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Slashes the foe\n"
+            "with scythes or\n"
+            "claws crossed."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13088,7 +13097,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM54"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Plays rough with\n"
+            "the foe. May lower\n"
+            "its Attack."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13099,7 +13111,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM55"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Damages the foe\n"
+            "with a strong\n"
+            "shining light."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13110,7 +13125,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM56"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Crunches with sharp\n"
+            "fangs. May lower\n"
+            "the foe's Defense."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13121,7 +13139,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM57"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Hurls boulders at\n"
+            "the foe. May make\n"
+            "it flinch."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13132,7 +13153,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM58"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Slams the foe with\n"
+            "a steel-hard head.\n"
+            "May make it flinch."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13143,7 +13167,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM59"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Stabs the foe with\n"
+            "a poison tentacle.\n"
+            "May poison it."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -13154,7 +13181,10 @@ const struct ItemInfo gItemsInfo[] =
     {
         .name = ITEM_NAME("TM60"),
         .price = 3000,
-        .description = COMPOUND_STRING("?????"), // Todo
+        .description = COMPOUND_STRING(
+            "Fires a flash of\n"
+            "light. May lower\n"
+            "the foe's Sp. Def."),
         .importance = I_REUSABLE_TMS,
         .pocket = POCKET_TM_HM,
         .type = ITEM_USE_PARTY_MENU,
@@ -16116,6 +16146,28 @@ const struct ItemInfo gItemsInfo[] =
         .fieldUseFunc = ItemUseOutOfBattle_CapCandy,
         .iconPic = gItemIcon_RareCandy,
         .iconPalette = gItemIconPalette_RareCandy,
+    },
+
+    // Roguémon: the way into the regional forms, as no run is in Hisui,
+    // Galar, Alola or Paldea (IF_REGION never holds). The species tables
+    // list it after the region's own way, with that way's level as
+    // IF_MIN_LEVEL. Both fieldUseFunc and effect, or USE does nothing.
+    [ITEM_REGIONAL_CHARM] =
+    {
+        .name = ITEM_NAME("Regional Charm"),
+        .price = 3000,
+        .description = COMPOUND_STRING(
+            "Evolves some\n"
+            "Pokémon into their\n"
+            "regional forms."),
+        .pocket = POCKET_ITEMS,
+        .sortType = ITEM_TYPE_EVOLUTION_ITEM,
+        .type = ITEM_USE_PARTY_MENU,
+        .fieldUseFunc = ItemUseOutOfBattle_EvolutionStone,
+        .effect = gItemEffect_EvoItem,
+        .flingPower = 30,
+        .iconPic = gItemIcon_StrangeSouvenir,
+        .iconPalette = gItemIconPalette_StrangeSouvenir,
     },
 };
 

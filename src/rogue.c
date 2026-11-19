@@ -1071,6 +1071,10 @@ static bool32 CountersType(u16 species, enum Type type)
 // late trainers fully evolved teams.
 static bool32 EvoReached(const struct Evolution *evo, u32 level, bool32 anyMethod, u32 stage)
 {
+    // The REGIONAL CHARM is the player's way into a regional form:
+    // trainers' Pokemon grow as before (Koffing into Weezing).
+    if (evo->method == EVO_ITEM && evo->param == ITEM_REGIONAL_CHARM)
+        return FALSE;
     bool32 byLevel = (evo->method == EVO_LEVEL && evo->param != 0 && evo->param <= level);
     // Friendship and the other conditions (Riolu, Golbat) are a level
     // evolution with no level: they count as other methods.
@@ -4310,18 +4314,103 @@ static void DropMoveSlot(struct TrainerMon *mon, u32 slot, u32 *n)
     mon->moves[--*n] = MOVE_NONE;
 }
 
+// The level a species learned its evolution moves (LEVEL_UP_MOVE(0, ...)):
+// the level it evolved at, as EvoReached counts it. Garchomp evolves at 48,
+// so its Crunch comes after Dragon Claw 42 and before Dig 52.
+static u32 EvoMoveLevel(u16 species)
+{
+    u16 pre = GetSpeciesPreEvolution(species);
+    const struct Evolution *evos;
+    u32 i;
+    if (pre == SPECIES_NONE)
+        return 1;
+    evos = GetSpeciesEvolutions(pre);
+    for (i = 0; evos != NULL && evos[i].method != EVOLUTIONS_END; i++)
+    {
+        if (SanitizeSpeciesId(evos[i].targetSpecies) != species)
+            continue;
+        if (evos[i].method == EVO_LEVEL && evos[i].param != 0)
+            return evos[i].param;
+        break;
+    }
+    return 26 + (GetSpeciesPreEvolution(pre) != SPECIES_NONE) * 6;
+}
+
+#define LEARN_ORDER_MAX 64
+
+static u32 LearnOrderAdd(u16 *order, u32 n, u16 move)
+{
+    u32 i, j;
+    for (i = 0; i < n; i++)
+    {
+        if (order[i] == move)
+        {
+            for (j = i; j + 1 < n; j++)
+                order[j] = order[j + 1];
+            n--;
+            break;
+        }
+    }
+    if (n == LEARN_ORDER_MAX)
+    {
+        for (j = 0; j + 1 < n; j++)
+            order[j] = order[j + 1];
+        n--;
+    }
+    order[n++] = move;
+    return n;
+}
+
+// A species' level-up moves up to level in the order it learned them, each
+// at its last learning, evolution moves at the level it evolved (the
+// learnset lists them as level 0, which a plain walk drops). The last four
+// are what a Pokemon raised to this level knows.
+static u32 LearnOrder(u16 species, u32 level, u16 *order)
+{
+    const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(species);
+    u32 i, k, n = 0, evoLevel = 0;
+    bool32 evoMoves = FALSE, evoDone;
+
+    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END; i++)
+        if (learnset[i].level == 0)
+            evoMoves = TRUE;
+    if (evoMoves)
+    {
+        evoLevel = EvoMoveLevel(species);
+        if (evoLevel > level)
+            evoLevel = level;
+    }
+    evoDone = !evoMoves;
+    for (i = 0; ; i++)
+    {
+        bool32 end = (learnset[i].move == LEVEL_UP_MOVE_END || learnset[i].level > level);
+        if (!evoDone && (end || learnset[i].level > evoLevel))
+        {
+            evoDone = TRUE;
+            for (k = 0; learnset[k].move != LEVEL_UP_MOVE_END; k++)
+                if (learnset[k].level == 0)
+                    n = LearnOrderAdd(order, n, learnset[k].move);
+        }
+        if (end)
+            break;
+        if (learnset[i].level != 0)
+            n = LearnOrderAdd(order, n, learnset[i].move);
+    }
+    return n;
+}
+
 // gymType is the first leader's type for their team (TYPE_NONE otherwise).
 static void SetEarlyMoves(struct TrainerMon *mon, u32 level, enum Type gymType)
 {
-    const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(mon->species);
-    u32 i, j, n = 0;
+    u16 order[LEARN_ORDER_MAX];
+    u32 i, j, n = 0, count = LearnOrder(mon->species, level, order);
     bool32 attack = FALSE;
 
     for (i = 0; i < MAX_MON_MOVES; i++)
         mon->moves[i] = MOVE_NONE;
-    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END && learnset[i].level <= level; i++)
+    for (i = 0; i < count; i++)
     {
-        enum Move move = learnset[i].move;
+        enum Move move = order[i];
         bool32 dup = FALSE;
         if (!EarlyMoveOk(move, level))
             continue;
@@ -4762,30 +4851,18 @@ static bool32 TypeHitsHard(enum Type atk, enum Type def)
     return atk != TYPE_NONE && def != TYPE_NONE && GetTypeModifier(atk, def) >= UQ_4_12(2.0);
 }
 
-// The moves a trainer Pokemon left empty would get: the last four it
-// learned by level.
+// The moves a trainer Pokemon left empty gets: the last four it learned by
+// level, its evolution moves at the level it evolved (LearnOrder).
 static void FillLevelMoves(struct TrainerMon *mon)
 {
-    const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(mon->species);
-    u32 i, j, n = 0;
+    u16 order[LEARN_ORDER_MAX];
+    u32 i, n, first;
     if (mon->moves[0] != MOVE_NONE)
         return;
-    for (i = 0; learnset[i].move != LEVEL_UP_MOVE_END && learnset[i].level <= mon->lvl; i++)
-    {
-        bool32 dup = FALSE;
-        for (j = 0; j < n; j++)
-            if (mon->moves[j] == learnset[i].move)
-                dup = TRUE;
-        if (dup)
-            continue;
-        if (n == MAX_MON_MOVES)
-        {
-            for (j = 0; j < MAX_MON_MOVES - 1; j++)
-                mon->moves[j] = mon->moves[j + 1];
-            n--;
-        }
-        mon->moves[n++] = learnset[i].move;
-    }
+    n = LearnOrder(mon->species, mon->lvl, order);
+    first = (n > MAX_MON_MOVES) ? n - MAX_MON_MOVES : 0;
+    for (i = 0; i < MAX_MON_MOVES; i++)
+        mon->moves[i] = (first + i < n) ? order[first + i] : MOVE_NONE;
 }
 
 // Over a free slot, else the weakest attack not of its own types, else the
@@ -4873,6 +4950,26 @@ static u32 TypeAttackCap(u32 level)
     return 100;
 }
 
+// What a trainer's Pokemon may be taught: Emerald's TMs, HMs and tutors,
+// not the later-gen TMs, which are the player's to find. So the
+// leaders' teams stay as they were (rostertest R4, rostertest --out the
+// same before and after).
+extern const u16 gTutorMoves[];
+
+bool32 Rogue_TrainerCanTeach(u16 species, u16 move)
+{
+    u32 i;
+    if (!CanLearnTeachableMove(species, move))
+        return FALSE;
+    if (!RogueGen_IsNewTM(GetTMHMItemIdFromMoveId(move)))
+        return TRUE;
+    // Rock Slide was Emerald's tutor move before it was TM57.
+    for (i = 0; gTutorMoves[i] != MOVE_UNAVAILABLE; i++)
+        if (gTutorMoves[i] == move)
+            return TRUE;
+    return FALSE;
+}
+
 static bool32 LearnsByLevel(u16 species, enum Move move, u32 level)
 {
     const struct LevelUpMove *learnset = GetSpeciesLevelUpLearnset(species);
@@ -4918,7 +5015,7 @@ static void GiveLeaderTypeAttacks(u32 size, enum Type type)
         {
             u16 m = sTypeAttacks[type][k];
             if (m != MOVE_NONE && GetMovePower(m) <= cap
-             && (LearnsByLevel(mon->species, m, mon->lvl) || CanLearnTeachableMove(mon->species, m)))
+             && (LearnsByLevel(mon->species, m, mon->lvl) || Rogue_TrainerCanTeach(mon->species, m)))
                 move = m;
         }
         if (move == MOVE_NONE)
@@ -4973,7 +5070,7 @@ static void GiveLeaderAnswers(u32 size, enum Type type)
                 for (k = (mon->lvl >= 35) ? 2 : 1; k-- > 0 && !answered;)
                 {
                     u16 move = sAnswerMoves[a][k];
-                    if (move != MOVE_NONE && CanLearnTeachableMove(mon->species, move))
+                    if (move != MOVE_NONE && Rogue_TrainerCanTeach(mon->species, move))
                     {
                         TeachAnswer(mon, move, type);
                         used[slot] = TRUE;
@@ -4999,7 +5096,7 @@ static void TameFirstLeader(u32 size, enum Type type, u16 tm)
         if (sTrainerParty[i].lvl < 20)
             SetEarlyMoves(&sTrainerParty[i], sTrainerParty[i].lvl, type);
     if (tmMove == MOVE_NONE || !StrongAttack(tmMove) || !FirstGymAttackOk(tmMove, type)
-     || !CanLearnTeachableMove(ace->species, tmMove))
+     || !Rogue_TrainerCanTeach(ace->species, tmMove))
         return;
     for (i = 0; i < MAX_MON_MOVES; i++)
     {
@@ -5211,6 +5308,9 @@ static void SettleTrainerParty(u32 size)
     {
         if (sTrainerParty[i].gender < TRAINER_MON_MALE || sTrainerParty[i].gender > TRAINER_MON_RANDOM_GENDER)
             sTrainerParty[i].gender = TRAINER_MON_RANDOM_GENDER;
+        // Left empty, the battle's own fill drops evolution moves.
+        if (sTrainerParty[i].species != SPECIES_NONE)
+            FillLevelMoves(&sTrainerParty[i]);
     }
 }
 

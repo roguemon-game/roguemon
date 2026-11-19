@@ -527,6 +527,8 @@ void CreateWildMon(enum Species species, u8 level)
     // roguemon: RUN 0's catch knows ordinary moves; the patch: wild Pokemon
     // know a move against your lead.
     Rogue_Run0OnWildMon(&gParties[B_TRAINER_OPPONENT_A][0], run0Catch);
+    // roguemon: UNLOCKS' NO EXPLOSIONS row.
+    Rogue_TrimWildMoves(&gParties[B_TRAINER_OPPONENT_A][0]);
 }
 
 #ifdef BUGFIX

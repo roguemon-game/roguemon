@@ -37,6 +37,8 @@ const struct MapLayout *Rogue_GetMapLayout(u16 mapLayoutId);
 // the edge of the loading map's connection i. FALSE: the edge is far from
 // the player and is copied in later (FillMapConnection).
 bool32 Rogue_EnsureMapBlocks(u16 mapGroup, u16 mapNum, u32 i);
+// Emerald's TMs, HMs and tutors only: what trainers' Pokemon are taught (src/rogue.c).
+bool32 Rogue_TrainerCanTeach(u16 species, u16 move);
 // Called as the engine starts laying out a map: no edge is left for later.
 void Rogue_NewMapLayout(void);
 const u16 *Rogue_LayoutBorder(const struct MapLayout *layout, int x, int y);
@@ -448,6 +450,10 @@ const u8 *Rogue_GetDexChoiceName(u32 mix);
 const u8 *Rogue_GetDexChoiceDescription(u32 mix);
 // Unlocks the run that just ended earned, for the summary.
 bool32 Rogue_IsSummaryUnlock(u32 unlock);
+// UNLOCKS' NO EXPLOSIONS row: when on, a wild Pokemon's Explosion,
+// Self-Destruct and Misty Explosion become other level-up moves it could
+// know (or nothing). Called on each wild Pokemon as it is made.
+void Rogue_TrimWildMoves(struct Pokemon *mon);
 // The record of first forms caught across runs (POKEDEX PICK).
 bool32 Rogue_WasCaught(u16 species, bool32 *shiny);
 // Milestones that count toward unlocks. Each updates the record.
@@ -533,6 +539,7 @@ struct RogueRecordStash
 {
     struct RogueRecord *record; // a copy on the heap, so the caller's stack stays small
     u16 vars[6];
+    bool8 noExplosions; // FLAG_ROGUE_NO_EXPLOSIONS
 };
 void Rogue_StashRecord(struct RogueRecordStash *stash);
 void Rogue_RestoreRecord(const struct RogueRecordStash *stash);
