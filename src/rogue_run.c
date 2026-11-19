@@ -1695,9 +1695,10 @@ bool32 Rogue_IsFieldMoveBadgeWon(u32 fieldMove)
     case FIELD_MOVE_ROCK_SMASH: obstacle = ROBST_ROCK_SMASH; break;
     case FIELD_MOVE_STRENGTH:   obstacle = ROBST_STRENGTH; break;
     case FIELD_MOVE_SURF:       obstacle = ROBST_SURF; break;
-    case FIELD_MOVE_FLASH:      return Rogue_BadgeCount() >= 2;
-    case FIELD_MOVE_FLY:        return Rogue_BadgeCount() >= 6;
-    case FIELD_MOVE_DIVE:       return Rogue_BadgeCount() >= 7;
+    case FIELD_MOVE_FLASH:      return Rogue_BadgeCount() >= ROGUE_FLASH_BADGES;
+    case FIELD_MOVE_FLY:        return Rogue_BadgeCount() >= ROGUE_FLY_BADGES;
+    case FIELD_MOVE_DIVE:       return Rogue_BadgeCount() >= ROGUE_DIVE_BADGES;
+    case FIELD_MOVE_WATERFALL:  return Rogue_BadgeCount() >= ROGUE_WATERFALL_BADGES;
     default:                    return Rogue_BadgeCount() >= ROGUE_NUM_GYMS;
     }
     return (RogueGen_KeysWon(Rogue_GetRegion(), Rogue_WonGyms()) & ROGUE_KEY(obstacle)) != 0;

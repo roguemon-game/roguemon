@@ -1506,6 +1506,16 @@ u32 RogueGen_SpecialtyStock(const struct RogueRegion *r, u8 place, u8 badges, u1
 // 2 or 3 TMs (one more with extraTM) and 2 held items, from the seed, the
 // town and the badges; none before ROGUE_PRIZE_BADGES.
 #define ROGUE_PRIZE_BADGES 2
+// The badges that open each HM's field move (Rogue_IsFieldMoveBadgeWon), and
+// from which the HM is taught (prize desk, gym leaders): Cut, Rock Smash,
+// Strength and Surf from the gym each region rolls (gymKey), the others from
+// a count of badges.
+#define ROGUE_FLASH_BADGES     2
+#define ROGUE_FLY_BADGES       6
+#define ROGUE_DIVE_BADGES      7
+#define ROGUE_WATERFALL_BADGES ROGUE_NUM_GYMS
+bool8 RogueGen_IsHM(u16 item);
+u8 RogueGen_HMBadges(const struct RogueRegion *r, u16 hm);
 // The badges that open the Coin Case and prize desk in this region:
 // ROGUE_PRIZE_BADGES, or 1 when its Game Corner town is reached with 1.
 u8 RogueGen_PrizeBadges(const struct RogueRegion *r);

@@ -1033,9 +1033,55 @@ static const u16 sGymExtraTMs[][3] =
     { TYPE_DRAGON, ITEM_TM_DRAGON_CLAW, ITEM_TM_SAFEGUARD },
 };
 
+// The eight HMs, each with the type of its move: a leader of that type can
+// give it, once its badge is won (RogueGen_HMBadges).
+static const u16 sHMs[][2] =
+{
+    { ITEM_HM_CUT,        TYPE_NORMAL },
+    { ITEM_HM_FLY,        TYPE_FLYING },
+    { ITEM_HM_SURF,       TYPE_WATER },
+    { ITEM_HM_STRENGTH,   TYPE_NORMAL },
+    { ITEM_HM_FLASH,      TYPE_NORMAL },
+    { ITEM_HM_ROCK_SMASH, TYPE_FIGHTING },
+    { ITEM_HM_WATERFALL,  TYPE_WATER },
+    { ITEM_HM_DIVE,       TYPE_WATER },
+};
+
+bool8 RogueGen_IsHM(u16 item)
+{
+    u32 i;
+    for (i = 0; i < sizeof(sHMs) / sizeof(sHMs[0]); i++)
+        if (sHMs[i][0] == item)
+            return TRUE;
+    return FALSE;
+}
+
+// How many badges open the HM's field move in this region, and so teach it
+// (0xFF: never). The gyms are won in order, so badge N is gym N-1's.
+u8 RogueGen_HMBadges(const struct RogueRegion *r, u16 hm)
+{
+    u8 obstacle;
+    int g;
+    switch (hm)
+    {
+    case ITEM_HM_CUT:        obstacle = ROBST_CUT; break;
+    case ITEM_HM_ROCK_SMASH: obstacle = ROBST_ROCK_SMASH; break;
+    case ITEM_HM_STRENGTH:   obstacle = ROBST_STRENGTH; break;
+    case ITEM_HM_SURF:       obstacle = ROBST_SURF; break;
+    case ITEM_HM_FLASH:      return ROGUE_FLASH_BADGES;
+    case ITEM_HM_FLY:        return ROGUE_FLY_BADGES;
+    case ITEM_HM_DIVE:       return ROGUE_DIVE_BADGES;
+    case ITEM_HM_WATERFALL:  return ROGUE_WATERFALL_BADGES;
+    default:                 return 0xFF;
+    }
+    g = KeyGym(r, obstacle);
+    return g < 0 ? 0xFF : g + 1;
+}
+
 u16 RogueGen_GymTM(const struct RogueRegion *r, u8 gym, u8 type)
 {
-    u16 ok[12];
+    u16 ok[16], hms[4];
+    u32 nHM = 0;
     u32 i, n = 0, rng = RogueRng_Hash(r->seed, 17800 + gym);
     s32 lowest = -1;
     for (i = 0; i < NUM_CATALOGUE && n < 12; i++)
@@ -1054,6 +1100,19 @@ u16 RogueGen_GymTM(const struct RogueRegion *r, u8 gym, u8 type)
             ok[n++] = sGymExtraTMs[i][1];
             ok[n++] = sGymExtraTMs[i][2];
         }
+    // The HMs of the leader's type whose badge this gym's win completes or
+    // passed (gym + 1 badges). A Water leader gives one of them instead of
+    // a TM: Water Pulse and Rain Dance are the only Water TMs, and a Water
+    // starter learns nothing else until the 50s (Feraligatr's Aqua Tail at
+    // 59). For other types the HMs join the TMs to pick from. They are
+    // Emerald HMs, so every Pokemon that learns them by HM can be taught.
+    for (i = 0; i < sizeof(sHMs) / sizeof(sHMs[0]); i++)
+        if (sHMs[i][1] == type && RogueGen_HMBadges(r, sHMs[i][0]) <= gym + 1)
+            hms[nHM++] = sHMs[i][0];
+    if (type == TYPE_WATER && nHM > 0)
+        return hms[RogueRng_Range(&rng, nHM)];
+    for (i = 0; i < nHM; i++)
+        ok[n++] = hms[i];
     if (n == 0)
         return lowest >= 0 ? sItemCatalogue[lowest].item : ITEM_TM_FACADE;
     return ok[RogueRng_Range(&rng, n)];

@@ -4,7 +4,8 @@
 // first a clerk in every gym town's Mart), open from the 2nd badge
 // (ROGUE_PRIZE_BADGES). Paid with money: 2 or 3 TMs and 2 held items from
 // the seed, the town and the badges (RogueGen_PrizeStock), so the stock
-// changes each run.
+// changes each run, then each of the eight HMs from the badge that opens its
+// field move (Rogue_IsFieldMoveBadgeWon).
 //
 // Megas match the player's own Pokemon, since in a Nuzlocke a stone for a
 // Pokemon the player never caught is no use:
@@ -43,6 +44,7 @@
 #include "constants/form_change_types.h"
 #include "constants/hold_effects.h"
 #include "constants/items.h"
+#include "constants/field_move.h"
 
 // The 5th badge, not the 4th: a Gyarados caught early and given its
 // stone at the 4th won the 5th gym 24 of 24 times, against 18 of 24 without.
@@ -50,7 +52,24 @@
 #define ROGUE_MEGA_STONE_CAP 3
 #define ROGUE_MEGA_STONE_PRICE 10000
 #define MAX_MEGA_CHOICES 8
-#define MAX_PRIZE_STOCK 12
+#define MAX_PRIZE_STOCK 20
+// Each HM from the badge that opens its field move, at a TM's price, one of
+// each a run.
+#define ROGUE_PRIZE_HM_PRICE 3000
+#define NUM_PRIZE_HMS 8
+
+// The HMs in the order of their numbers, each with its field move.
+static const u16 sPrizeHMs[NUM_PRIZE_HMS][2] =
+{
+    { ITEM_HM_CUT,        FIELD_MOVE_CUT },
+    { ITEM_HM_FLY,        FIELD_MOVE_FLY },
+    { ITEM_HM_SURF,       FIELD_MOVE_SURF },
+    { ITEM_HM_STRENGTH,   FIELD_MOVE_STRENGTH },
+    { ITEM_HM_FLASH,      FIELD_MOVE_FLASH },
+    { ITEM_HM_ROCK_SMASH, FIELD_MOVE_ROCK_SMASH },
+    { ITEM_HM_WATERFALL,  FIELD_MOVE_WATERFALL },
+    { ITEM_HM_DIVE,       FIELD_MOVE_DIVE },
+};
 
 static IWRAM_DATA u16 sPrizeStock[MAX_PRIZE_STOCK] = {0}; // these three in IWRAM: EWRAM is full
 static IWRAM_DATA u16 sMegaChoices[MAX_MEGA_CHOICES] = {0};
@@ -252,13 +271,18 @@ u32 Rogue_PrizePrice(u32 price, u16 item)
 {
     if (Rogue_IsMegaStone(item))
         return ROGUE_MEGA_STONE_PRICE;
+    if (RogueGen_IsHM(item))
+        return ROGUE_PRIZE_HM_PRICE;
     return price;
 }
 
-// One of each, for the shop: TRUE if the player owns this stone already.
+// One of each, for the shop: TRUE if the player owns this stone, or this
+// HM (never used up), already.
 bool32 Rogue_PrizeOwnedAlready(u16 item)
 {
     struct MegaScan sc;
+    if (RogueGen_IsHM(item))
+        return CheckBagHasItem(item, 1) || CheckPCHasItem(item, 1);
     if (!Rogue_IsMegaStone(item))
         return FALSE;
     if (CheckBagHasItem(item, 1) || CheckPCHasItem(item, 1))
@@ -297,13 +321,18 @@ void Rogue_PreparePrizeCounter(void)
         return;
     stone = CounterStone(place);
     evoItem = CounterEvoItem(place);
-    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 3,
+    n = RogueGen_PrizeStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sPrizeStock, MAX_PRIZE_STOCK - 3 - NUM_PRIZE_HMS,
                             MegasHere() && stone == ITEM_NONE, ItemPrice);
     for (i = 0; i < n && evoItem != ITEM_NONE; i++)
         if (sPrizeStock[i] == evoItem)
             evoItem = ITEM_NONE;
     if (evoItem != ITEM_NONE)
         sPrizeStock[n++] = evoItem;
+    // The HMs whose field move the badges open, kept on the list once
+    // bought (the shop shows SOLD OUT).
+    for (i = 0; i < NUM_PRIZE_HMS; i++)
+        if (Rogue_IsFieldMoveBadgeWon(sPrizeHMs[i][1]))
+            sPrizeStock[n++] = sPrizeHMs[i][0];
     if (stone != ITEM_NONE)
         sPrizeStock[n++] = stone;
     sPrizeStock[n] = ITEM_NONE;
@@ -497,7 +526,7 @@ static u32 DeskItemCoins(u16 item)
     u32 c;
     if (Rogue_IsMegaStone(item))
         return DESK_STONE_COINS;
-    c = GetItemPrice(item) / 30;
+    c = Rogue_PrizePrice(GetItemPrice(item), item) / 30;
     c = (c + 5) / 10 * 10;
     return c < 100 ? 100 : c > 400 ? 400 : c;
 }

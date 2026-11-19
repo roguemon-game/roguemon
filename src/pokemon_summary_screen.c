@@ -3512,6 +3512,9 @@ static const u8 sText_EvoNight[] = _(", night");
 static const u8 sText_EvoMale[] = _(", male");
 static const u8 sText_EvoFemale[] = _(", female");
 static const u8 sText_EvoSpecial[] = _(", special");
+static const u8 sText_EvoLvUp[] = _("Lv up");
+static const u8 sText_EvoLead[] = _(", lead ");
+static const u8 sText_EvoSteps[] = _(" steps");
 static const u8 sText_EvoTrade[] = _("Trade");
 static const u8 sText_EvoInBattle[] = _(" in battle");
 static const u8 sText_EvoOther[] = _("Special");
@@ -3520,13 +3523,16 @@ static const u8 sText_EvoMore[] = _(" +{STR_VAR_1} more");
 
 // Roguémon: how this species evolves, from its evolution table:
 // 'Lv. 36', 'Water Stone', 'Trade holding Metal Coat', 'Friendship, day'.
-// Conditions it has no short words for read ', special'. Several ways
+// 'Lv up, lead 1000 steps' is a level-up after that many steps with it
+// leading the party (gFollowerSteps: it starts again from 0 when the lead
+// changes or the game is reloaded). Conditions it has no short words for
+// read ', special'. Several ways
 // show the first and '+N more' (N other species).
 static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
 {
     const struct EvolutionParam *params = evo->params;
     u32 i;
-    bool32 friendship = FALSE;
+    bool32 friendship = FALSE, steps = FALSE;
     u16 holdItem = ITEM_NONE, knows = MOVE_NONE;
     u8 *end = dst;
 
@@ -3539,6 +3545,8 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
             holdItem = params[i].arg1;
         else if (params[i].condition == IF_KNOWS_MOVE)
             knows = params[i].arg1;
+        else if (params[i].condition == IF_MIN_OVERWORLD_STEPS)
+            steps = TRUE;
     }
 
     switch (evo->method)
@@ -3554,7 +3562,8 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
         else if (knows != MOVE_NONE)
             end = StringAppend(StringCopy(dst, sText_EvoKnows), GetMoveName(knows));      // 'Knows Ancient Power'
         else
-            end = StringCopy(dst, sText_EvoLevelUp);
+            end = StringCopy(dst, steps ? sText_EvoLvUp : sText_EvoLevelUp);             // 'Lv up, lead 1000 steps'
+
         if (evo->method == EVO_LEVEL_BATTLE_ONLY)
             end = StringAppend(dst, sText_EvoInBattle);
         break;
@@ -3595,6 +3604,11 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
         case IF_GENDER:
             end = StringAppend(dst, params[i].arg1 == MON_MALE ? sText_EvoMale : sText_EvoFemale);
             break;
+        case IF_MIN_OVERWORLD_STEPS:
+            end = StringAppend(dst, sText_EvoLead);
+            end = ConvertIntToDecimalStringN(end, params[i].arg1, STR_CONV_MODE_LEFT_ALIGN, 5);
+            end = StringAppend(dst, sText_EvoSteps);
+            break;
         // Nothing the player does: the region (never Alola, Galar...
         // here; those ways aren't counted) and the personality value.
         case IF_REGION:
@@ -3611,7 +3625,8 @@ static void BufferEvolveMethod(u8 *dst, const struct Evolution *evo)
             break;
         }
         if (params[i].condition != IF_HOLD_ITEM && params[i].condition != IF_KNOWS_MOVE
-         && params[i].condition != IF_TIME && params[i].condition != IF_GENDER)
+         && params[i].condition != IF_TIME && params[i].condition != IF_GENDER
+         && params[i].condition != IF_MIN_OVERWORLD_STEPS)
             break;   // one ', special' is enough
     }
     (void)end;

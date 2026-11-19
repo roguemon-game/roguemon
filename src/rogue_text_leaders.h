@@ -788,10 +788,27 @@ TEXT_BANK(sLeaderTM,
     "This TM is a gift from {STEM}'s GYM. Take it with you.",
     "You've earned this TM as well. It holds a move of my type, of course.",
     "Here. A TECHNICAL MACHINE, from me to you.");
+// The same when the leader gives an HM (RogueGen_GymTM).
+TEXT_BANK(sLeaderHM,
+    "Take this HIDDEN MACHINE, too. It holds one of my favorite {TYPE} moves.",
+    "And this HM is yours. My {TYPE} POK@MON taught me what it's worth.",
+    "Here, an HM from our GYM. It holds a move my {TYPE} POK@MON love. Use it well!",
+    "One more thing: this HM. {TYPE} moves are what I'm known for.",
+    "Take this HM. Everyone who beats me gets one. Not many do!",
+    "This HM is a gift from {STEM}'s GYM. Take it with you.",
+    "You've earned this HM as well. It holds a move of my type, of course.",
+    "Here. A HIDDEN MACHINE, from me to you.");
 // (After the TM the leader says their own after line, RogueText_LeaderAfter.)
 const char *RogueText_LeaderTM(struct RogueTextCtx *c, bool8 after)
 {
+    u8 gyms[ROGUE_NUM_GYMS], e4[ROGUE_NUM_E4];
     (void)after;
+    if (c->gym < ROGUE_NUM_GYMS)
+    {
+        RogueGen_RegionLeaders(c->r, gyms, e4);
+        if (RogueGen_IsHM(RogueGen_GymTM(c->r, c->gym, gRogueGenLeaders[gyms[c->gym] % ROGUE_LEADER_COUNT].type)))
+            return RogueText_PickRegion(&sLeaderHM, c, c->gym);
+    }
     return RogueText_PickRegion(&sLeaderTM, c, c->gym);
 }
 

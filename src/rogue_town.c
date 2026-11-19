@@ -474,7 +474,10 @@ static const struct InteriorDef sRun0Library = { LAYOUT_ROUTE114_FOSSIL_MANIACS_
 // does not have (the Fossil Maniac's tunnel, the floors upstairs): walled
 // over with the wall beside them, stairs floored over with the floor beside
 // them, as each room loads (Rogue_SealInterior). Blocks are metatile and
-// collision; the height stays the room's own.
+// collision; the height stays the room's own, unless the block gives one:
+// the stairs' foot stands a step up (height 4) and floored over at that
+// height it stopped the player like an unseen chair, so it comes down to
+// the floor's height 3.
 struct InteriorSeal
 {
     u16 layout;
@@ -511,10 +514,10 @@ static const struct InteriorSeal sInteriorSeals[] =
     // The POKéMON CENTER's and the League's stairs up to the Cable Club.
     { LAYOUT_POKEMON_CENTER_1F, 0, 5, 0x0220 }, { LAYOUT_POKEMON_CENTER_1F, 0, 6, 0x0220 },
     { LAYOUT_POKEMON_CENTER_1F, 0, 7, 0x0220 }, { LAYOUT_POKEMON_CENTER_1F, 1, 5, 0x0202 },
-    { LAYOUT_POKEMON_CENTER_1F, 1, 6, 0x0202 }, { LAYOUT_POKEMON_CENTER_1F, 1, 7, 0x0202 },
+    { LAYOUT_POKEMON_CENTER_1F, 1, 6, 0x3202 }, { LAYOUT_POKEMON_CENTER_1F, 1, 7, 0x0202 },
     { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 0, 6, 0x0220 }, { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 0, 7, 0x0220 },
     { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 0, 8, 0x0220 }, { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 1, 6, 0x0202 },
-    { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 1, 7, 0x0202 }, { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 1, 8, 0x0240 },
+    { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 1, 7, 0x3202 }, { LAYOUT_EVER_GRANDE_CITY_POKEMON_LEAGUE_1F, 1, 8, 0x0240 },
 };
 
 // Map script special (ON_LOAD, after a battle or a menu too) for the region's
@@ -525,8 +528,14 @@ void Rogue_SealInterior(void)
     if (gSaveBlock1Ptr->location.mapGroup != ROGUE_GROUP || Rogue_Run0InLibrary())
         return;
     for (i = 0; i < ARRAY_COUNT(sInteriorSeals); i++)
-        if (sInteriorSeals[i].layout == gMapHeader.mapLayoutId)
+    {
+        if (sInteriorSeals[i].layout != gMapHeader.mapLayoutId)
+            continue;
+        if (sInteriorSeals[i].block & MAPGRID_ELEVATION_MASK)
+            MapGridSetMetatileEntryAt(sInteriorSeals[i].x + MAP_OFFSET, sInteriorSeals[i].y + MAP_OFFSET, sInteriorSeals[i].block);
+        else
             MapGridSetMetatileIdAt(sInteriorSeals[i].x + MAP_OFFSET, sInteriorSeals[i].y + MAP_OFFSET, sInteriorSeals[i].block);
+    }
 }
 
 // What the people in a house do.
