@@ -1483,6 +1483,7 @@ enum RogueShop
     RSHOP_HELD,    // held items (ash towns' exchange)
     RSHOP_HERB,    // the herb shop (spring towns)
     RSHOP_TYPE,    // type items (treetop towns)
+    RSHOP_MINT,    // the mint seller (gym towns from the 2nd badge): its clerk text
     RSHOP_COUNT,
 };
 
@@ -1492,6 +1493,8 @@ enum RogueShop
 
 // The item (and how many) a source hands out, worked out from the seed.
 u16 RogueGen_ItemFor(const struct RogueRegion *r, u8 source, u8 index, u8 *qty, u8 flags);
+bool8 RogueGen_HasMintSeller(const struct RogueRegion *r, u8 place);
+u32 RogueGen_MintStock(const struct RogueRegion *r, u8 place, u8 badges, u16 *out, u32 max);
 u8 RogueGen_ItemRole(u16 item); // enum RogueItemRole, RIR_COUNT if not in the catalogue
 // Every item the region hands out, in the ledger's order (host tools).
 typedef void (*RogueItemSink)(u32 source, u32 index, u16 item, u8 qty, u32 stage, u32 taste);

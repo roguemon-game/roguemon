@@ -556,6 +556,7 @@ u32 Rogue_BadgeCount(void);
 
 // --- src/rogue_prize.c: the Game Corner's prize counter and the Mega Stones ---
 bool32 Rogue_IsMegaStone(u16 item);
+u16 Rogue_MegaStoneOf(u16 species);
 u32 Rogue_PrizePrice(u32 price, u16 item);
 bool32 Rogue_PrizeOwnedAlready(u16 item);
 void Rogue_PreparePrizeCounter(void);

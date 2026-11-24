@@ -741,6 +741,23 @@ Rogue_EventScript_Mart\n\():
 Rogue_EventScript_SpecialtyClerk::
 	lock
 	faceplayer
+	setvar VAR_0x8004, 0
+	special Rogue_PrepareSpecialtyShop
+	message Rogue_Text_Str1
+	waitmessage
+	special Rogue_OpenSpecialtyShop
+	waitstate
+	msgbox gText_PleaseComeAgain, MSGBOX_DEFAULT
+	release
+	end
+
+@ The mint seller on the floor of every gym town's Mart from the 2nd badge
+@ sells mints, the Ability Capsule and the Ability Patch, more with
+@ more badges.
+Rogue_EventScript_MintSeller::
+	lock
+	faceplayer
+	setvar VAR_0x8004, 1
 	special Rogue_PrepareSpecialtyShop
 	message Rogue_Text_Str1
 	waitmessage

@@ -249,12 +249,29 @@ static const struct RogueItemDef sItemCatalogue[] =
     IT(PP_UP,          VITAMIN, 1, 8, 3, 3, 1),
     IT(PP_MAX,         VITAMIN, 6, 8, 1, 1, 1),
     IT(ABILITY_CAPSULE, VITAMIN, 4, 8, 1, 1, 1),
-    IT(ADAMANT_MINT,   VITAMIN, 3, 8, 1, 1, 1),
-    IT(MODEST_MINT,    VITAMIN, 3, 8, 1, 1, 1),
-    IT(JOLLY_MINT,     VITAMIN, 3, 8, 1, 1, 1),
-    IT(TIMID_MINT,     VITAMIN, 3, 8, 1, 1, 1),
+    // Mints, in the mint counter's tiers: the plain ones from the
+    // 3rd badge as before, the strong ones later, the rest at the end.
     IT(BOLD_MINT,      VITAMIN, 3, 8, 1, 1, 1),
     IT(CALM_MINT,      VITAMIN, 3, 8, 1, 1, 1),
+    IT(IMPISH_MINT,    VITAMIN, 3, 8, 1, 1, 1),
+    IT(CAREFUL_MINT,   VITAMIN, 3, 8, 1, 1, 1),
+    IT(BRAVE_MINT,     VITAMIN, 3, 8, 1, 1, 1),
+    IT(QUIET_MINT,     VITAMIN, 3, 8, 1, 1, 1),
+    IT(RELAXED_MINT,   VITAMIN, 3, 8, 1, 1, 1),
+    IT(SASSY_MINT,     VITAMIN, 3, 8, 1, 1, 1),
+    IT(ADAMANT_MINT,   VITAMIN, 4, 8, 1, 1, 1),
+    IT(MODEST_MINT,    VITAMIN, 4, 8, 1, 1, 1),
+    IT(JOLLY_MINT,     VITAMIN, 6, 8, 1, 1, 1),
+    IT(TIMID_MINT,     VITAMIN, 6, 8, 1, 1, 1),
+    IT(LONELY_MINT,    VITAMIN, 8, 8, 1, 1, 1),
+    IT(NAUGHTY_MINT,   VITAMIN, 8, 8, 1, 1, 1),
+    IT(LAX_MINT,       VITAMIN, 8, 8, 1, 1, 1),
+    IT(MILD_MINT,      VITAMIN, 8, 8, 1, 1, 1),
+    IT(RASH_MINT,      VITAMIN, 8, 8, 1, 1, 1),
+    IT(GENTLE_MINT,    VITAMIN, 8, 8, 1, 1, 1),
+    IT(HASTY_MINT,     VITAMIN, 8, 8, 1, 1, 1),
+    IT(NAIVE_MINT,     VITAMIN, 8, 8, 1, 1, 1),
+    IT(SERIOUS_MINT,   VITAMIN, 8, 8, 1, 1, 1),
     // TMs (single use, as in Emerald): the strong ones later.
     TM(WATER_PULSE,  WATER, 0, 2),
     TM(BULLET_SEED,  GRASS, 0, 2),
@@ -1288,6 +1305,79 @@ u8 RogueGen_SpecialtyShop(const struct RogueRegion *r, u8 place)
             return RSHOP_NONE;
     }
     return sThemeShop[p->theme];
+}
+
+// The mint seller: in every gym town's Mart reached with 2 or more
+// badges, a second seller on the shop floor beside the theme counter (every
+// gym town has one of those, so the mints take none of their places).
+bool8 RogueGen_HasMintSeller(const struct RogueRegion *r, u8 place)
+{
+    const struct RoguePlace *p = &r->places[place];
+    u32 i, n = 0;
+    if (p->kind != RPLACE_TOWN || p->type != RTOWN_GYM)
+        return FALSE;
+    for (i = 0; i < p->number && i < r->nTowns; i++)
+        if (r->places[r->towns[i]].type == RTOWN_GYM)
+            n++;
+    return n >= 2;
+}
+
+// The mint counter's stock: 4 mints from the 2nd badge, 5 from the
+// 4th, 6 from the 6th, picked per run and town; Adamant and Modest always
+// from the 4th, Jolly and Timid from the 6th; every mint can turn up with
+// all 8 badges. The Ability Capsule from the 4th, the Ability Patch from
+// the 6th.
+static const u16 sMintsPlain[] = { ITEM_BOLD_MINT, ITEM_IMPISH_MINT, ITEM_CALM_MINT, ITEM_CAREFUL_MINT, ITEM_RELAXED_MINT,
+                                   ITEM_SASSY_MINT, ITEM_BRAVE_MINT, ITEM_QUIET_MINT };
+static const u16 sMintsLast[] = { ITEM_LONELY_MINT, ITEM_NAUGHTY_MINT, ITEM_LAX_MINT, ITEM_MILD_MINT, ITEM_RASH_MINT,
+                                  ITEM_GENTLE_MINT, ITEM_HASTY_MINT, ITEM_NAIVE_MINT, ITEM_SERIOUS_MINT };
+
+u32 RogueGen_MintStock(const struct RogueRegion *r, u8 place, u8 badges, u16 *out, u32 max)
+{
+    u32 n = 0, want, i, tries, rng = RogueRng_Hash(r->seed, 26300 + place);
+    u32 nPool = (sizeof(sMintsPlain) / sizeof(sMintsPlain[0])) + (badges >= 8 ? (sizeof(sMintsLast) / sizeof(sMintsLast[0])) : 0);
+    if (max > 0)
+        out[0] = ITEM_NONE;
+    if (!RogueGen_HasMintSeller(r, place) || badges < 2 || max < 9)
+        return 0;
+    want = badges >= 6 ? 6 : badges >= 4 ? 5 : 4;
+    if (badges >= 4)
+    {
+        out[n++] = ITEM_ADAMANT_MINT;
+        out[n++] = ITEM_MODEST_MINT;
+    }
+    if (badges >= 6)
+    {
+        out[n++] = ITEM_JOLLY_MINT;
+        out[n++] = ITEM_TIMID_MINT;
+    }
+    for (tries = 0; tries < 60 && n < want; tries++)
+    {
+        u32 k = RogueRng_Range(&rng, nPool);
+        u16 item = k < (sizeof(sMintsPlain) / sizeof(sMintsPlain[0])) ? sMintsPlain[k] : sMintsLast[k - (sizeof(sMintsPlain) / sizeof(sMintsPlain[0]))];
+        for (i = 0; i < n && out[i] != item; i++)
+            ;
+        if (i == n)
+            out[n++] = item;
+    }
+    // In item order (the natures' order), so the list reads tidily.
+    for (i = 1; i < n; i++)
+    {
+        u32 j = i;
+        u16 v = out[i];
+        while (j > 0 && out[j - 1] > v)
+        {
+            out[j] = out[j - 1];
+            j--;
+        }
+        out[j] = v;
+    }
+    if (badges >= 4)
+        out[n++] = ITEM_ABILITY_CAPSULE;
+    if (badges >= 6)
+        out[n++] = ITEM_ABILITY_PATCH;
+    out[n] = ITEM_NONE;
+    return n;
 }
 
 // What the counter sells with this many badges, into out (at most max, with

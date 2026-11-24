@@ -1259,6 +1259,7 @@ void Rogue_MarkFolkGiftGiven(void)
 
 extern const u8 Rogue_EventScript_MartClerk[];
 extern const u8 Rogue_EventScript_SpecialtyClerk[];
+extern const u8 Rogue_EventScript_MintSeller[];
 extern const u8 Rogue_EventScript_PrizeClerk[];
 extern const u8 Rogue_EventScript_RuinsScholar[];
 extern const u8 Rogue_EventScript_RhymeChild[];
@@ -1284,12 +1285,20 @@ static const u16 sShopClerks[] =
 static EWRAM_DATA u16 sSpecialtyStock[13] = {0};
 
 // Script special: the specialty counter's stock for the badges won, and
-// the clerk's greeting into STR_VAR_1.
+// the clerk's greeting into STR_VAR_1. VAR_0x8004 1: the mint seller's.
 void Rogue_PrepareSpecialtyShop(void)
 {
     u32 place = Rogue_GetCurrentTownPlace(), shop = RogueGen_SpecialtyShop(Rogue_GetRegion(), place);
     u8 flags = Rogue_RuleOn(RULE_NO_ITEMS) ? ROGUE_ITEMS_HARDCORE : 0;
-    RogueGen_SpecialtyStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sSpecialtyStock, ARRAY_COUNT(sSpecialtyStock), flags);
+    if (gSpecialVar_0x8004 == 1)
+    {
+        shop = RSHOP_MINT;
+        RogueGen_MintStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sSpecialtyStock, ARRAY_COUNT(sSpecialtyStock));
+    }
+    else
+    {
+        RogueGen_SpecialtyStock(Rogue_GetRegion(), place, Rogue_BadgeCount(), sSpecialtyStock, ARRAY_COUNT(sSpecialtyStock), flags);
+    }
     // Under the Hardcore rules the battle counter sells berries instead.
     if (shop == RSHOP_BATTLE && flags)
         shop = RSHOP_COUNT;
@@ -1357,6 +1366,14 @@ static const struct MapHeader *BuildRoomWithWarps(u32 mapNum, u32 place, u8 warp
         u32 shop = RogueGen_SpecialtyShop(Rogue_GetRegion(), place);
         AddInteriorObject(sShopClerks[shop < ARRAY_COUNT(sShopClerks) ? shop : RSHOP_NONE], spot, 0,
                           Rogue_EventScript_SpecialtyClerk, MOVEMENT_TYPE_FACE_RIGHT);
+    }
+    // The mint seller, on the shop floor by the counter's end:
+    // the walk from the door to both clerks stays clear.
+    if (warpKind == RWARP_MART && RogueGen_HasMintSeller(Rogue_GetRegion(), place)
+     && sInteriorEvents.objectEventCount < MAX_INTERIOR_OBJS)
+    {
+        static const u8 spot[] = { 4, 2 };
+        AddInteriorObject(OBJ_EVENT_GFX_LASS, spot, 0, Rogue_EventScript_MintSeller, MOVEMENT_TYPE_FACE_DOWN);
     }
     // (The Mart's prize counter of v1.1.7's first build is the Game
     // Corner's prize desk now: RINT_GAME_CORNER.)

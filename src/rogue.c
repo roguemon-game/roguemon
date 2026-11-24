@@ -4480,6 +4480,107 @@ static void SetPartyMon(u32 i, u16 species, u32 level, u32 iv, bool32 anyMethod)
     }
 }
 
+// Harder bosses: in Hardcore runs only, never
+// RUN 0's story.
+static bool32 RogueBossesHard(void)
+{
+    return Rogue_IsHardcore() && !Rogue_IsRun0();
+}
+
+// Test hook (leaderbench.py --hard-off): a bit per piece to leave out, so
+// the bench measures each piece on one ROM. 1: 2a natures and IVs, 2: 2b
+// Champion moves, 4: 2c held items, 8: 2e Megas. Bench only: 0x40 League
+// IVs 31 (else 28), 0x80 the test team as one that used the mint seller
+// (ApplyTestParty).
+IWRAM_DATA u8 gRogueTestHardOff = 0;
+#define BOSSES_HARD(bit) (RogueBossesHard() && !(gRogueTestHardOff & (bit)))
+
+// A boss Pokemon's nature from its base stats: up its better
+// attacking stat, or its speed when it is fast (100 or more), and down the
+// attacking stat it doesn't use: Adamant, Jolly, Modest or Timid.
+static u8 BossNature(u16 species)
+{
+    bool32 physical = GetSpeciesBaseAttack(species) >= GetSpeciesBaseSpAttack(species);
+    bool32 fast = GetSpeciesBaseSpeed(species) >= 100;
+    if (physical)
+        return fast ? NATURE_JOLLY : NATURE_ADAMANT;
+    return fast ? NATURE_TIMID : NATURE_MODEST;
+}
+
+// The Elite Four and the Champion in Hardcore: perfect IVs (24 otherwise)
+// and good natures for every Pokemon; from the 6th gym on, the leader's ace
+// gets its good nature too.
+static void HardenBossTeam(u32 size, bool32 league)
+{
+    u32 i;
+    if (!BOSSES_HARD(1))
+        return;
+    for (i = 0; i < size; i++)
+    {
+        if (!league && i != size - 1)
+            continue;
+        sTrainerParty[i].nature = BossNature(sTrainerParty[i].species);
+        // 28, not the plan's 31: with 31 the League's few wins on the
+        // bench (1-3 of 24) went to none (tuned; the hook's 0x40 puts
+        // 31 back to compare).
+        if (league)
+            sTrainerParty[i].iv = (gRogueTestHardOff & 0x40) ? TRAINER_PARTY_IVS(31, 31, 31, 31, 31, 31)
+                                                             : TRAINER_PARTY_IVS(28, 28, 28, 28, 28, 28);
+    }
+}
+
+// The type items, for a boss Pokemon that attacks with its own type.
+static const u16 sBossTypeItems[NUMBER_OF_MON_TYPES] =
+{
+    [TYPE_NORMAL] = ITEM_SILK_SCARF, [TYPE_FIGHTING] = ITEM_BLACK_BELT, [TYPE_FLYING] = ITEM_SHARP_BEAK,
+    [TYPE_POISON] = ITEM_POISON_BARB, [TYPE_GROUND] = ITEM_SOFT_SAND, [TYPE_ROCK] = ITEM_HARD_STONE,
+    [TYPE_BUG] = ITEM_SILVER_POWDER, [TYPE_GHOST] = ITEM_SPELL_TAG, [TYPE_STEEL] = ITEM_METAL_COAT,
+    [TYPE_FIRE] = ITEM_CHARCOAL, [TYPE_WATER] = ITEM_MYSTIC_WATER, [TYPE_GRASS] = ITEM_MIRACLE_SEED,
+    [TYPE_ELECTRIC] = ITEM_MAGNET, [TYPE_PSYCHIC] = ITEM_TWISTED_SPOON, [TYPE_ICE] = ITEM_NEVER_MELT_ICE,
+    [TYPE_DRAGON] = ITEM_DRAGON_FANG, [TYPE_DARK] = ITEM_BLACK_GLASSES, [TYPE_FAIRY] = ITEM_FAIRY_FEATHER,
+};
+
+// A boss Pokemon's held item, from a short list and never luck
+// (no Focus Sash, Quick Claw, King's Rock or Bright Powder): Leftovers for a
+// bulky one, its type's item for an attacker. The player can't keep one
+// with Thief or Covet: B_RETURN_STOLEN_NPC_ITEMS puts the player's own
+// items back after every trainer battle.
+static u16 BossHeldItem(u16 species)
+{
+    u32 bulk = GetSpeciesBaseHP(species) + GetSpeciesBaseDefense(species) + GetSpeciesBaseSpDefense(species);
+    u32 atk = GetSpeciesBaseAttack(species), spa = GetSpeciesBaseSpAttack(species);
+    u32 off = (atk > spa ? atk : spa) + GetSpeciesBaseSpeed(species);
+    enum Type type = GetSpeciesType(species, 0);
+    if (bulk * 10 > off * 13 || type >= NUMBER_OF_MON_TYPES || sBossTypeItems[type] == ITEM_NONE)
+        return ITEM_LEFTOVERS;
+    return sBossTypeItems[type];
+}
+
+// Held items and the ace's Mega Stone in Hardcore runs (after the ace's
+// Sitrus Berry is set). league: every Pokemon holds an item (the first a
+// Lum Berry); else (gyms 6-8) the first besides the ace. The ace Mega
+// Evolves when its species has a stone, not a legend's, and the
+// player carries the MEGA RING into the battle.
+static void GiveBossItems(u32 size, bool32 league)
+{
+    u32 i;
+    if (BOSSES_HARD(4))
+    {
+        for (i = 0; i + 1 < size; i++)
+        {
+            if (!league && i > 0)
+                break;
+            sTrainerParty[i].heldItem = (league && i == 0) ? ITEM_LUM_BERRY : BossHeldItem(sTrainerParty[i].species);
+        }
+    }
+    if (BOSSES_HARD(8) && size > 0 && CheckBagHasItem(ITEM_MEGA_RING, 1))
+    {
+        u16 stone = Rogue_MegaStoneOf(sTrainerParty[size - 1].species);
+        if (stone != ITEM_NONE)
+            sTrainerParty[size - 1].heldItem = stone;
+    }
+}
+
 static const u8 sText_May[] = _("MAY");
 static const u8 sText_Brendan[] = _("BRENDAN");
 
@@ -5083,6 +5184,67 @@ static void GiveLeaderAnswers(u32 size, enum Type type)
     }
 }
 
+// The Champion's ace sets in Hardcore runs, one per ace, from
+// what each can learn here (level-up moves, Emerald's TMs and tutors; the
+// new TMs aren't taught to trainers); a move it can't learn at its level is
+// left out and the ace keeps one of its own (Kingdra keeps one slot so).
+static const struct { u16 species; u16 moves[MAX_MON_MOVES]; } sChampionAceSets[] =
+{
+    { SPECIES_METAGROSS, { MOVE_METEOR_MASH, MOVE_ZEN_HEADBUTT, MOVE_EARTHQUAKE, MOVE_BULLET_PUNCH } },
+    { SPECIES_AGGRON,    { MOVE_IRON_HEAD, MOVE_ROCK_SLIDE, MOVE_EARTHQUAKE, MOVE_ICE_PUNCH } },
+    { SPECIES_TYRANITAR, { MOVE_ROCK_SLIDE, MOVE_CRUNCH, MOVE_EARTHQUAKE, MOVE_ICE_PUNCH } },
+    { SPECIES_MILOTIC,   { MOVE_SURF, MOVE_ICE_BEAM, MOVE_RECOVER, MOVE_TOXIC } },
+    { SPECIES_GYARADOS,  { MOVE_WATERFALL, MOVE_DRAGON_DANCE, MOVE_EARTHQUAKE, MOVE_ICE_FANG } },
+    { SPECIES_KINGDRA,   { MOVE_SURF, MOVE_DRAGON_PULSE, MOVE_ICE_BEAM, MOVE_NONE } },
+    { SPECIES_SALAMENCE, { MOVE_DRAGON_CLAW, MOVE_EARTHQUAKE, MOVE_FIRE_FANG, MOVE_ROCK_SLIDE } },
+    { SPECIES_GARCHOMP,  { MOVE_DRAGON_CLAW, MOVE_EARTHQUAKE, MOVE_ROCK_SLIDE, MOVE_SWORDS_DANCE } },
+    { SPECIES_LUCARIO,   { MOVE_AURA_SPHERE, MOVE_SHADOW_BALL, MOVE_DRAGON_PULSE, MOVE_CALM_MIND } },
+    { SPECIES_DRAGONITE, { MOVE_DRAGON_CLAW, MOVE_EARTHQUAKE, MOVE_FIRE_PUNCH, MOVE_THUNDER_PUNCH } },
+    { SPECIES_ALAKAZAM,  { MOVE_PSYCHIC, MOVE_SHADOW_BALL, MOVE_CALM_MIND, MOVE_RECOVER } },
+    { SPECIES_MACHAMP,   { MOVE_CROSS_CHOP, MOVE_KNOCK_OFF, MOVE_ROCK_SLIDE, MOVE_EARTHQUAKE } },
+};
+
+static bool32 AceCanLearn(const struct TrainerMon *mon, u16 move)
+{
+    return move != MOVE_NONE && (LearnsByLevel(mon->species, move, mon->lvl) || Rogue_TrainerCanTeach(mon->species, move));
+}
+
+// The Champion in Hardcore runs: each Pokemon gets its first
+// type's strong attack, the team gets coverage against the ace's type's
+// weaknesses, as the Elite Four do, and the ace its hand-made set.
+static void GiveChampionMoves(u32 size)
+{
+    struct TrainerMon *ace = &sTrainerParty[size - 1];
+    u16 moves[MAX_MON_MOVES];
+    u32 i, j, n = 0;
+    if (!BOSSES_HARD(2) || size == 0)
+        return;
+    for (i = 0; i < size; i++)
+        GiveLeaderTypeAttacks(size, GetSpeciesType(sTrainerParty[i].species, 0));
+    GiveLeaderAnswers(size, GetSpeciesType(ace->species, 0));
+    for (i = 0; i < ARRAY_COUNT(sChampionAceSets) && sChampionAceSets[i].species != ace->species; i++)
+        ;
+    if (i == ARRAY_COUNT(sChampionAceSets))
+        return;
+    FillLevelMoves(ace);
+    for (j = 0; j < MAX_MON_MOVES; j++)
+        if (AceCanLearn(ace, sChampionAceSets[i].moves[j]))
+            moves[n++] = sChampionAceSets[i].moves[j];
+    // The rest from its own moves, strongest kept as they stand.
+    for (j = 0; j < MAX_MON_MOVES && n < MAX_MON_MOVES; j++)
+    {
+        u32 k;
+        if (ace->moves[j] == MOVE_NONE)
+            continue;
+        for (k = 0; k < n && moves[k] != ace->moves[j]; k++)
+            ;
+        if (k == n)
+            moves[n++] = ace->moves[j];
+    }
+    for (j = 0; j < MAX_MON_MOVES; j++)
+        ace->moves[j] = j < n ? moves[j] : MOVE_NONE;
+}
+
 // The first leader's team: Roxanne's moves (see FirstGymAttackOk), and the
 // ace knows the TM the badge brings when it is such an attack, as Nosepass
 // knows Rock Tomb.
@@ -5323,6 +5485,16 @@ static void ApplyTestParty(void)
         u16 item = gRogueTestParty[i][2];
         CreateRandomMonWithIVs(&gPlayerParty[i], gRogueTestParty[i][0], gRogueTestParty[i][1], 15);
         SetMonData(&gPlayerParty[i], MON_DATA_HELD_ITEM, &item);
+        // A team that used the mint seller (the bench test): a good nature
+        // from a mint on each, the Ability Patch on the first.
+        if (gRogueTestHardOff & 0x80)
+        {
+            u32 nature = BossNature(gRogueTestParty[i][0]), abilityNum = 2;
+            SetMonData(&gPlayerParty[i], MON_DATA_HIDDEN_NATURE, &nature);
+            if (i == 0)
+                SetMonData(&gPlayerParty[i], MON_DATA_ABILITY_NUM, &abilityNum);
+            CalculateMonStats(&gPlayerParty[i]);
+        }
         if (GetItemHoldEffect(item) == HOLD_EFFECT_MEGA_STONE && !CheckBagHasItem(ITEM_MEGA_RING, 1))
             AddBagItem(ITEM_MEGA_RING, 1);
     }
@@ -5397,7 +5569,10 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
         // sent out last.
         SetPartyMon(size - 1, ace, 60, 24, TRUE);
         sTrainerParty[size - 1].lvl = sRegion.championLevel + sChampionLevelOffsets[size - 1];
+        GiveChampionMoves(size);
+        HardenBossTeam(size, TRUE);
         sTrainerParty[size - 1].heldItem = ITEM_SITRUS_BERRY;
+        GiveBossItems(size, TRUE);
         sTrainer.items[0] = ITEM_FULL_RESTORE;
         sTrainer.items[1] = ITEM_HYPER_POTION;
         sTrainer.aiFlags = AI_FLAG_BASIC_TRAINER | AI_FLAG_SMART_MON_CHOICES | AI_FLAG_ACE_POKEMON;
@@ -5487,7 +5662,9 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
         BuildLeaderTeam(leader, &rng, size, sRegion.e4Level[member], 500, TRUE, 24);
         GiveLeaderTypeAttacks(size, leader->type);
         GiveLeaderAnswers(size, leader->type);
+        HardenBossTeam(size, TRUE);
         sTrainerParty[size - 1].heldItem = ITEM_SITRUS_BERRY;
+        GiveBossItems(size, TRUE);
         sTrainer.items[0] = ITEM_FULL_RESTORE;
         sTrainer.items[1] = ITEM_HYPER_POTION;
         sTrainer.aiFlags = AI_FLAG_BASIC_TRAINER | AI_FLAG_SMART_MON_CHOICES | AI_FLAG_ACE_POKEMON;
@@ -5525,7 +5702,11 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
             GiveLeaderTypeAttacks(size, leader->type);
             GiveLeaderAnswers(size, leader->type);
         }
+        if (step >= 5)
+            HardenBossTeam(size, FALSE);
         sTrainerParty[size - 1].heldItem = (step == 0) ? ITEM_ORAN_BERRY : ITEM_SITRUS_BERRY;
+        if (step >= 5)
+            GiveBossItems(size, FALSE);
         sTrainer.items[0] = (step == 0) ? ITEM_POTION : (step < 5 ? ITEM_SUPER_POTION : ITEM_HYPER_POTION);
         if (step >= 3)
             sTrainer.aiFlags = AI_FLAG_BASIC_TRAINER | AI_FLAG_SMART_MON_CHOICES;

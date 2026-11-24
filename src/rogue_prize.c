@@ -115,6 +115,16 @@ static void StonesOfLine(u16 species, u32 depth, u16 *list, u32 *n, u32 max)
             StonesOfLine(evo[i].targetSpecies, depth + 1, list, n, max);
 }
 
+// The Mega Stone a species itself uses (its first), or ITEM_NONE; never a
+// legend's (a boss ace's stone).
+u16 Rogue_MegaStoneOf(u16 species)
+{
+    u16 list[2];
+    u32 n = 0;
+    StonesOfLine(species, 3, list, &n, 2);
+    return n ? list[0] : ITEM_NONE;
+}
+
 // What the player has, read once per talk: the Mega Stones held by any of
 // their Pokemon, and the stones that fit their living Pokemon (the party's,
 // and the boxes' too), so the 420 box slots are decrypted once.

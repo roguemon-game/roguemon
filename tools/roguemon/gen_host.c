@@ -427,6 +427,19 @@ int main(int argc, char **argv)
                 fprintf(f, "\n");
             }
         }
+        if (RogueGen_HasMintSeller(&sRegion, i))
+        {
+            u16 stock[16];
+            int b, n;
+            for (b = 0; b <= 8; b++)
+            {
+                n = RogueGen_MintStock(&sRegion, i, b, stock, 16);
+                fprintf(f, "  mint badges=%d items=", b);
+                for (j = 0; j < n; j++)
+                    fprintf(f, "%s%d", j ? "," : "", stock[j]);
+                fprintf(f, "\n");
+            }
+        }
         for (j = 0; j < m->nGates; j++)
             fprintf(f, "  gate x=%d y=%d dir=%d need=%d\n", m->gates[j].x, m->gates[j].y, m->gates[j].dir, m->gates[j].need);
         for (j = 0; j < m->nHouses; j++)

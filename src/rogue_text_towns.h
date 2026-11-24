@@ -2074,11 +2074,16 @@ TEXT_BANK(sShopBerries,
     "Fresh BERRIES from round {TOWN}! Your POK@MON knows just when to eat them. Smarter than me.",
     "BERRIES picked this morning! Well, yesterday. Still good!",
 );
+TEXT_BANK(sShopMint,
+    "MINTS from the hills round {TOWN}! One sniff, and a POK@MON's nature changes.",
+    "A MINT for every nature! The more BADGES you carry, the more I'll show you.",
+    "MINTS, CAPSULES, PATCHES... Little things that make a POK@MON more itself.",
+);
 static const struct RogueTextBank *const sShopBanks[RSHOP_COUNT + 1] =
 {
     [RSHOP_BATTLE] = &sShopBattle, [RSHOP_VITAMIN] = &sShopVitamin, [RSHOP_STONE] = &sShopStone, [RSHOP_BALL] = &sShopBall,
     [RSHOP_TM] = &sShopTm, [RSHOP_SEA] = &sShopSea, [RSHOP_HELD] = &sShopHeld, [RSHOP_HERB] = &sShopHerb,
-    [RSHOP_TYPE] = &sShopType, [RSHOP_COUNT] = &sShopBerries,
+    [RSHOP_TYPE] = &sShopType, [RSHOP_MINT] = &sShopMint, [RSHOP_COUNT] = &sShopBerries,
 };
 
 // ---------------------------------------------------------------------------
