@@ -4464,11 +4464,12 @@ static void SetEarlyMoves(struct TrainerMon *mon, u32 level, enum Type gymType)
     }
 }
 
-static void SetPartyMon(u32 i, u16 species, u32 level, u32 iv, bool32 anyMethod)
+// A party Pokemon of exactly this species, not evolved further.
+static void SetPartyMonAs(u32 i, u16 species, u32 level, u32 iv)
 {
     struct TrainerMon *mon = &sTrainerParty[i];
     memset(mon, 0, sizeof(*mon));
-    mon->species = EvolveForLevel(species, level, anyMethod);
+    mon->species = species;
     mon->lvl = level;
     mon->iv = TRAINER_PARTY_IVS(iv, iv, iv, iv, iv, iv);
     mon->ball = BALL_POKE;
@@ -4478,6 +4479,11 @@ static void SetPartyMon(u32 i, u16 species, u32 level, u32 iv, bool32 anyMethod)
         SetEarlyMoves(mon, level, TYPE_NONE);
         SetEarlyAbility(mon);
     }
+}
+
+static void SetPartyMon(u32 i, u16 species, u32 level, u32 iv, bool32 anyMethod)
+{
+    SetPartyMonAs(i, EvolveForLevel(species, level, anyMethod), level, iv);
 }
 
 // Harder bosses: in Hardcore runs only, never
@@ -4727,6 +4733,26 @@ static u16 WildOfTier(u32 *rng, u32 tier)
 // starter alone. Levels are in the region's curve.
 static const u8 sRivalSizes[4] = { 1, 3, 4, 5 };
 
+// A rival battle's level. One met after a later one was won (the second
+// battle skipped, then found after the third) comes at the level of the
+// next battle not yet won, or the level cap if that is lower or all are
+// won (Discord, Nov 25: a level 22 rival met with a level 40 team).
+static u32 RivalLevel(u32 battle)
+{
+    u32 level = sRegion.rivalLevel[battle], next = 0, b;
+    for (b = 3; b > battle; b--)
+    {
+        if (FlagGet(FLAG_ROGUE_RIVAL_1 + b))
+        {
+            next = b < 3 ? sRegion.rivalLevel[b + 1] : 0xFF;
+            break;
+        }
+    }
+    if (next > Rogue_GetLevelCap())
+        next = Rogue_GetLevelCap();
+    return next > level ? next : level;
+}
+
 // The rival's partner's gender, the same at every battle of a run: drawn
 // once from the region's seed, as its species' ratio allows.
 static u8 RivalPartnerGender(u16 species)
@@ -4886,15 +4912,31 @@ static bool32 LeaderPickOk(const struct LeaderDef *leader, u16 picked, u16 evolv
     return TRUE;
 }
 
-static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, u32 ace, u32 maxBst, bool32 anyMethod, u32 iv)
+// The ace stands out, most of all in the early gyms: Roxanne's team is
+// 12, 12 and 15.
+static u32 LeaderSlotLevel(u32 i, u32 size, u32 ace)
+{
+    return (i == size - 1) ? ace : ace - (ace < 30 ? 3 : 2) - (size - 2 - i) / 2;
+}
+
+// Does a slot other than skip have this species, or one of a starter line?
+static bool32 TeamHasOther(u32 size, u32 skip, u16 species, bool32 starter)
 {
     u32 i;
-    bool32 starterTaken = FALSE;
+    for (i = 0; i < size; i++)
+        if (i != skip && (starter ? InStarterLine(sTrainerParty[i].species) : sTrainerParty[i].species == species))
+            return TRUE;
+    return FALSE;
+}
+
+static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, u32 ace, u32 maxBst, bool32 anyMethod, u32 iv)
+{
+    u32 i, best = size - 1;
+    bool32 starterTaken = FALSE, signature = FALSE;
+    u16 base[PARTY_SIZE];
     for (i = 0; i < size; i++)
     {
-        // The ace stands out, most of all in the early gyms: Roxanne's
-        // team is 12, 12 and 15.
-        u32 level = (i == size - 1) ? ace : ace - (ace < 30 ? 3 : 2) - (size - 2 - i) / 2;
+        u32 level = LeaderSlotLevel(i, size, ace);
         u32 tries = 0;
         u16 species = (i == size - 1) ? SignatureAce(leader, level, maxBst)
                                       : LeaderFavorite(leader, rng, i, level, maxBst, anyMethod);
@@ -4905,6 +4947,8 @@ static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, 
             // The ace's stage is already chosen: no further evolution.
             SetPartyMon(i, species, level, iv, i != size - 1 && anyMethod);
             starterTaken |= InStarterLine(species);
+            base[i] = species;
+            signature = i == size - 1;
             continue;
         }
         do
@@ -4914,6 +4958,47 @@ static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, 
         } while (++tries < 30 && (PartyHasSpecies(i, sTrainerParty[i].species)
                                   || !LeaderPickOk(leader, picked, sTrainerParty[i].species, starterTaken)));
         starterTaken |= InStarterLine(picked) || InStarterLine(sTrainerParty[i].species);
+        base[i] = picked;
+    }
+    // The ace is the strongest of the team (Discord, Nov 25: Sabrina's
+    // Solosis ace behind her Girafarig). A signature ace stays: a bench
+    // Pokemon stronger than it is picked again under it.
+    for (i = 0; signature && i + 1 < size; i++)
+    {
+        u32 aceBst = SpeciesBst(sTrainerParty[size - 1].species), tries;
+        u32 level = LeaderSlotLevel(i, size, ace);
+        if (SpeciesBst(sTrainerParty[i].species) <= aceBst)
+            continue;
+        for (tries = 0; tries < 30; tries++)
+        {
+            u16 picked = PickSpecies(rng, leader->type, 0, aceBst < maxBst ? aceBst : maxBst);
+            u16 evolved = EvolveForLevel(picked, level, anyMethod);
+            if (SpeciesBst(evolved) <= aceBst && !TeamHasOther(size, i, evolved, FALSE)
+             && LeaderPickOk(leader, picked, evolved, TeamHasOther(size, i, SPECIES_NONE, TRUE)))
+            {
+                SetPartyMon(i, picked, level, iv, anyMethod);
+                base[i] = picked;
+                break;
+            }
+        }
+    }
+    // Else, or when none fits under it, the bench's strongest moves up to
+    // the ace's slot and level, the ace down to its.
+    for (i = 0; i + 1 < size; i++)
+        if (SpeciesBst(sTrainerParty[i].species) > SpeciesBst(sTrainerParty[best].species))
+            best = i;
+    if (best != size - 1)
+    {
+        u16 bench = sTrainerParty[best].species;
+        SetPartyMon(best, base[size - 1], LeaderSlotLevel(best, size, ace), iv, anyMethod);
+        SetPartyMon(size - 1, base[best], ace, iv, TRUE);
+        // A stage on can be one of the bench already: keep the form it had.
+        for (i = 0; i + 1 < size; i++)
+            if (sTrainerParty[i].species == sTrainerParty[size - 1].species)
+            {
+                SetPartyMonAs(size - 1, bench, ace, iv);
+                break;
+            }
     }
 }
 
@@ -5593,7 +5678,7 @@ const struct Trainer *Rogue_GetTrainer(u16 trainerId)
     else if (slot >= ROGUE_SLOT_RIVAL_0)
     {
         u32 battle = (slot - ROGUE_SLOT_RIVAL_0) & 3;
-        u32 level = sRegion.rivalLevel[battle];
+        u32 level = RivalLevel(battle);
         u16 starter = RivalStarter(), second = battle == 3 ? RivalSecondCounter() : SPECIES_NONE;
         size = sRivalSizes[battle];
         for (i = 0; i + 1 < size; i++)
@@ -6954,7 +7039,7 @@ u16 Rogue_GetRivalPartner(void)
     EnsureRegion();
     for (battle = 0; battle < 3 && FlagGet(FLAG_ROGUE_RIVAL_1 + battle); battle++)
         ;
-    level = sRegion.rivalLevel[battle];
+    level = RivalLevel(battle);
     return EvolveForLevel(RivalStarter(), level, FALSE);
 }
 
