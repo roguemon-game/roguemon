@@ -4903,8 +4903,13 @@ static bool32 InStarterLine(u16 species)
     return FALSE;
 }
 
+// The form the leader sends out keeps the gym's type, not only the first
+// stage picked: a Normal gym's Azurill is a Water/Fairy Azumarill at 20, an
+// Eevee can be a Vaporeon (Discord, Nov 27).
 static bool32 LeaderPickOk(const struct LeaderDef *leader, u16 picked, u16 evolved, bool32 starterTaken)
 {
+    if (!SpeciesHasType(evolved, leader->type))
+        return FALSE;
     if (starterTaken && (InStarterLine(picked) || InStarterLine(evolved)))
         return FALSE;
     if (leader->type == TYPE_NORMAL && (SpeciesHasType(picked, TYPE_FLYING) || SpeciesHasType(evolved, TYPE_FLYING)))
@@ -4941,12 +4946,13 @@ static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, 
         u16 species = (i == size - 1) ? SignatureAce(leader, level, maxBst)
                                       : LeaderFavorite(leader, rng, i, level, maxBst, anyMethod);
         u16 picked;
-        if (species != SPECIES_NONE && !PartyHasSpecies(i, species)
-         && LeaderPickOk(leader, species, species, starterTaken))
-        {
-            // The ace's stage is already chosen: no further evolution.
+        // The ace's stage is already chosen: no further evolution.
+        if (species != SPECIES_NONE)
             SetPartyMon(i, species, level, iv, i != size - 1 && anyMethod);
-            starterTaken |= InStarterLine(species);
+        if (species != SPECIES_NONE && !PartyHasSpecies(i, species)
+         && LeaderPickOk(leader, species, sTrainerParty[i].species, starterTaken))
+        {
+            starterTaken |= InStarterLine(species) || InStarterLine(sTrainerParty[i].species);
             base[i] = species;
             signature = i == size - 1;
             continue;
@@ -4989,12 +4995,18 @@ static void BuildLeaderTeam(const struct LeaderDef *leader, u32 *rng, u32 size, 
             best = i;
     if (best != size - 1)
     {
-        u16 bench = sTrainerParty[best].species;
+        u16 bench = sTrainerParty[best].species, top = sTrainerParty[size - 1].species;
         SetPartyMon(best, base[size - 1], LeaderSlotLevel(best, size, ace), iv, anyMethod);
+        // A stage back that is not of the type (Togepi under a Flying
+        // gym's Togekiss) keeps the form it had.
+        if (!SpeciesHasType(sTrainerParty[best].species, leader->type))
+            SetPartyMonAs(best, top, LeaderSlotLevel(best, size, ace), iv);
         SetPartyMon(size - 1, base[best], ace, iv, TRUE);
-        // A stage on can be one of the bench already: keep the form it had.
+        // A stage on can be one of the bench already, or leave the type
+        // (a Normal gym's Eevee as Vaporeon): keep the form it had.
         for (i = 0; i + 1 < size; i++)
-            if (sTrainerParty[i].species == sTrainerParty[size - 1].species)
+            if (sTrainerParty[i].species == sTrainerParty[size - 1].species
+             || !SpeciesHasType(sTrainerParty[size - 1].species, leader->type))
             {
                 SetPartyMonAs(size - 1, bench, ace, iv);
                 break;

@@ -267,3 +267,52 @@ DOUBLE_BATTLE_TEST("Magic Bounce will trigger after all valid targets have been 
         MESSAGE("Kadabra is switched out with the Eject Pack!");
     }
 }
+
+// Discord report (Nov 27): Soak bounced off Mega Sableye's Magic Bounce onto
+// the user's Pelipper, which then seemed immune to direct damage. In the
+// games the user turns pure Water and takes damage as a Water type.
+SINGLE_BATTLE_TEST("Soak bounced by Magic Bounce makes the user pure Water and it still takes damage")
+{
+    enum Move move;
+    PARAMETRIZE { move = MOVE_SHADOW_CLAW; }
+    PARAMETRIZE { move = MOVE_SHADOW_BALL; }
+    PARAMETRIZE { move = MOVE_FOUL_PLAY; }
+    PARAMETRIZE { move = MOVE_POWER_GEM; }
+    PARAMETRIZE { move = MOVE_EARTHQUAKE; }
+    GIVEN {
+        ASSUME(GetMoveEffect(MOVE_SOAK) == EFFECT_SOAK);
+        PLAYER(SPECIES_PELIPPER) { Ability(ABILITY_DRIZZLE); Speed(20); }
+        OPPONENT(SPECIES_SABLEYE_MEGA) { Ability(ABILITY_MAGIC_BOUNCE); Speed(10); }
+    } WHEN {
+        TURN { MOVE(player, MOVE_SOAK); MOVE(opponent, move); }
+        TURN { MOVE(player, MOVE_CELEBRATE); MOVE(opponent, move); }
+    } SCENE {
+        ABILITY_POPUP(opponent, ABILITY_MAGIC_BOUNCE);
+        MESSAGE("Pelipper transformed into the Water type!");
+        HP_BAR(player);
+        MESSAGE("Pelipper used Celebrate!");
+        HP_BAR(player);
+    } THEN {
+        EXPECT_EQ(player->types[0], TYPE_WATER);
+        EXPECT_EQ(player->types[1], TYPE_WATER);
+    }
+}
+
+SINGLE_BATTLE_TEST("A Magic Bounce user's attack in the same turn hits the Pokemon it bounced a move onto")
+{
+    enum Move move;
+    PARAMETRIZE { move = MOVE_SOAK; }
+    PARAMETRIZE { move = MOVE_GROWL; }
+    GIVEN {
+        PLAYER(SPECIES_PELIPPER) { Speed(20); }
+        OPPONENT(SPECIES_ESPEON) { Ability(ABILITY_MAGIC_BOUNCE); Speed(10); }
+    } WHEN {
+        TURN { MOVE(player, move); MOVE(opponent, MOVE_TACKLE); }
+    } SCENE {
+        ABILITY_POPUP(opponent, ABILITY_MAGIC_BOUNCE);
+        MESSAGE("The opposing Espeon used Tackle!");
+        HP_BAR(player);
+    } THEN {
+        EXPECT_LT(player->hp, player->maxHP);
+    }
+}

@@ -2401,8 +2401,13 @@ static enum CancelerResult CancelerMultihitMoves(struct BattleCalcValues *cv)
 
 static enum CancelerResult CancelerSubstitute(struct BattleCalcValues *cv)
 {
+    enum MoveTarget moveTarget = GetBattlerMoveTargetType(cv->battlerAtk, cv->move);
+
+    // roguemon: a move on the field (Stealth Rock, Spikes) is not stopped by
+    // a foe's Substitute, as in the games (Discord, Nov 27).
     if (!IsBattleMoveStatus(cv->move)
      || IsStatChangeMove(cv->move)
+     || moveTarget == TARGET_FIELD || moveTarget == TARGET_OPPONENTS_FIELD
      || (cv->moveEffect == EFFECT_TRANSFORM && GetConfig(B_TRANSFORM_SUBSTITUTE_FAIL) < GEN_5))
         return CANCELER_RESULT_SUCCESS;
 
@@ -5169,6 +5174,11 @@ static enum MoveEndResult MoveEndClearBits(struct BattleCalcValues *cv)
     // go to next Bouncer or original attacker if possible
     if (gBattleStruct->bouncedMoveIsUsed)
     {
+        // roguemon: the bouncer's own move later in the turn must reach the
+        // Pokemon it bounced onto (Discord, Nov 27: Soak bounced off Mega
+        // Sableye, whose attack then left Pelipper untouched).
+        for (enum BattlerId battler = B_BATTLER_0; battler < gBattlersCount; battler++)
+            gBattleStruct->battlerState[gBattlerAttacker].targetsDone[battler] = FALSE;
         RestoreAttacker();
         RestoreTarget();
         gBattleStruct->bouncedMoveIsUsed = FALSE;

@@ -9,6 +9,7 @@
 #include "event_data.h"
 #include "fieldmap.h"
 #include "item_menu.h"
+#include "load_save.h"
 #include "main.h"
 #include "malloc.h"
 #include "party_menu.h"
@@ -64,8 +65,10 @@ const struct Trainer gBattlePartners[DIFFICULTY_COUNT][PARTNER_COUNT] =
     #include "battle/partner_control.h"
 };
 
-// Alias sBackupMapData to avoid using heap.
-struct BattleTestRunnerState *const gBattleTestRunnerState = (void *)sBackupMapData;
+// Alias sBackupMapData to avoid using heap. roguemon: the PC boxes instead,
+// as the map buffer is shrunk for the region and battle tests don't use them.
+#define sBackupMapData gPokemonStorage
+struct BattleTestRunnerState *const gBattleTestRunnerState = (void *)&sBackupMapData;
 STATIC_ASSERT(sizeof(struct BattleTestRunnerState) <= sizeof(sBackupMapData), sBackupMapDataSpace);
 
 static void CB2_BattleTest_NextParameter(void);
@@ -325,7 +328,7 @@ static void BattleTest_SetUp(void *data)
         Test_ExitWithResult(TEST_RESULT_INVALID, SourceLine(0), "results without PARAMETRIZE");
     if (sizeof(*STATE) + test->resultsSize * STATE->parameters > sizeof(sBackupMapData))
         Test_ExitWithResult(TEST_RESULT_ERROR, SourceLine(0), "OOM: STATE (%d) + STATE->results (%d) too big for sBackupMapData (%d)", sizeof(*STATE), test->resultsSize * STATE->parameters, sizeof(sBackupMapData));
-    STATE->results = (void *)((char *)sBackupMapData + sizeof(struct BattleTestRunnerState));
+    STATE->results = (void *)((char *)&sBackupMapData + sizeof(struct BattleTestRunnerState));
     memset(STATE->results, 0, test->resultsSize * STATE->parameters);
     STATE->hasTornDownBattle = FALSE;
 }

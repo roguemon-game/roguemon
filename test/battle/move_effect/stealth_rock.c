@@ -101,3 +101,24 @@ SINGLE_BATTLE_TEST("Stealth Rock damage terastalized mons with the correct amoun
         EXPECT_GT(results[0].damage, results[1].damage);
     }
 }
+
+// Discord report (Nov 27): Stealth Rock "failed" against a foe behind a
+// Substitute. In the games Substitute doesn't stop entry hazards.
+SINGLE_BATTLE_TEST("Stealth Rock is set while the foe is behind a Substitute")
+{
+    GIVEN {
+        ASSUME(GetMoveEffect(MOVE_SUBSTITUTE) == EFFECT_SUBSTITUTE);
+        PLAYER(SPECIES_WOBBUFFET) { Speed(5); }
+        OPPONENT(SPECIES_WOBBUFFET) { Speed(10); }
+        OPPONENT(SPECIES_RATICATE) { Speed(10); }
+    } WHEN {
+        TURN { MOVE(opponent, MOVE_SUBSTITUTE); MOVE(player, MOVE_STEALTH_ROCK); }
+        TURN { SWITCH(opponent, 1); }
+    } SCENE {
+        s32 maxHP = GetMonData(&OPPONENT_PARTY[1], MON_DATA_MAX_HP);
+        ANIMATION(ANIM_TYPE_MOVE, MOVE_SUBSTITUTE, opponent);
+        ANIMATION(ANIM_TYPE_MOVE, MOVE_STEALTH_ROCK, player);
+        NOT MESSAGE("But it failed!");
+        HP_BAR(opponent, damage: maxHP / 8);
+    }
+}
